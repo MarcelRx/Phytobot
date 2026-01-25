@@ -1,9 +1,12 @@
 langchain
 langchain-community
 langchain-openai
+langchain-groq
 streamlit
 PyPDF2
 chromadb
 python-dotenv
 pillow
 google-generativeai
+sentence-transformers
+requests
