@@ -5,6 +5,7 @@ An intelligent educational chatbot for identifying medicinal plants and providin
 - Plant identification through images.
 - Information extraction from internal database (WHO & Encyclopedia).
 - Adherence to safety protocols and medical disclaimer.
+- the project has the ability to extract information from the Encyclopedia of has herbal medicine 
 
 ## Project Structure
 - `data/`: Directory for PDF reference files.
