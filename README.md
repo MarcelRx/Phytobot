@@ -19,3 +19,25 @@ An intelligent educational chatbot for identifying medicinal plants and providin
 
 ## License
 This project is released under the MIT License.
+
+## Technical Challenges & Solutions
+
+- Challenge: Low-quality images leading to false identifications.
+  - Solution: Implemented an accuracy threshold (40%) that warns users if the identification confidence is low.
+  
+- Challenge: Handling large PDF files for real-time chat.
+  - Solution: Used LangChain's `RecursiveCharacterTextSplitter` to create optimal chunks and ChromaDB for high-speed vector search.
+  
+- Challenge: Ensuring medical safety.
+  - Solution: Engineered specific prompts to force the LLM to include medical disclaimers and cite specific sources from the internal database.
+
+ 
+## Screenshots
+
+### Plant Identification
+- Phytobot accurately identifies plants (even with lower confidence) and provides an immediate summary.
+- [Plant Identification Example](./screenshots/detection_example.png)!
+
+### Expert Chat & RAG System
+- The chatbot retrieves specific medicinal advice from the WHO and Encyclopedia database, including source citations and page numbers.
+- [Chatbot RAG Example](./screenshots/chat_example.png)!
