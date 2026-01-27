@@ -8,4 +8,5 @@ langchain-text-splitters
 python-dotenv
 requests
 pillow
+pypdf
 sentence-transformers
