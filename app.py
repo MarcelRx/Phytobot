@@ -39,9 +39,9 @@ with tab1:
             if name:
                 # Display warning if confidence is below 40%
                 if prob < 0.40:
-                    st.warning(f"⚠️ Low confidence: {prob:.2%}. Please ensure the photo is clear and taken in good light.")
+                    st.warning(f"Low confidence: {prob:.2%}. Please ensure the photo is clear and taken in good light.")
                 else:
-                    st.success(f"✅ Plant identified: {name} (Accuracy: {prob:.2%})")
+                    st.success(f"Plant identified: {name} (Accuracy: {prob:.2%})")
                 
                 # Generate query based on identified plant
                 query = f"Provide detailed medicinal info about {name} from the database."
