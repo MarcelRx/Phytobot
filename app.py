@@ -1,4 +1,5 @@
 import streamlit as st
+import datetime
 from src.vision_module import identify_plant
 from src.bot_logic import get_phytobot_response
 
@@ -19,20 +20,28 @@ with tab1:
         # Display uploaded image
         st.image(uploaded_file, width=300)
         if st.button("Analyze Plant"):
-            # Save uploaded file temporarily
-            with open("temp.jpg", "wb") as f:
+            # Generate timestamp-based filename to prevent overwriting
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            screenshot_path = f"./screenshots/ident_{timestamp}.jpg"
+            
+            # Save uploaded file with timestamp
+            with open(screenshot_path, "wb") as f:
                 f.write(uploaded_file.getbuffer())
             
-            # Identify plant using vision module
-            name, prob = identify_plant("temp.jpg")
+            # Save a static copy for README (optional)
+            with open("./screenshots/detection_example.png", "wb") as f:
+                f.write(uploaded_file.getbuffer())
+
+            # Identify plant using saved image
+            name, prob = identify_plant(screenshot_path)
             
             # Check if plant was identified
             if name:
                 # Display warning if confidence is below 40%
                 if prob < 0.40:
-                    st.warning(f"Low confidence: {prob:.2%}.Please ensure the photo is clear and taken in good light.")
+                    st.warning(f"⚠️ Low confidence: {prob:.2%}. Please ensure the photo is clear and taken in good light.")
                 else:
-                    st.success(f"Plant identified: {name} (Accuracy: {prob:.2%})")
+                    st.success(f"✅ Plant identified: {name} (Accuracy: {prob:.2%})")
                 
                 # Generate query based on identified plant
                 query = f"Provide detailed medicinal info about {name} from the database."
