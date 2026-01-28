@@ -1,8 +1,16 @@
+# Python
 __pycache__/
 *.py[cod]
-.env
+*$py.class
+
+# Environment
 venv/
-env/
+.env
+
+# Project Specific
 vector_db/
 temp.jpg
+screenshots/ident_*.png
+
+# OS
 .DS_Store
