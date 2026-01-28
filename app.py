@@ -25,16 +25,22 @@ with tab1:
             
             # Identify plant using vision module
             name, prob = identify_plant("temp.jpg")
+            
+            # Check if plant was identified
             if name:
-                # Display plant identification results
-                st.success(f"Plant identified: {name} (Accuracy: {prob:.2%})")
+                # Display warning if confidence is below 40%
+                if prob < 0.40:
+                    st.warning(f"Low confidence: {prob:.2%}.Please ensure the photo is clear and taken in good light.")
+                else:
+                    st.success(f"Plant identified: {name} (Accuracy: {prob:.2%})")
+                
                 # Generate query based on identified plant
                 query = f"Provide detailed medicinal info about {name} from the database."
                 response, _ = get_phytobot_response(query)
                 # Display medicinal information
                 st.markdown(response)
             else:
-                st.error("Sorry, plant could not be identified.")
+                st.error("Sorry, plant could not be identified. Please try a different angle.")
 
 with tab2:
     # Create chat interface
