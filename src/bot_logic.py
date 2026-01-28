@@ -1,4 +1,5 @@
 import os
+import datetime
 from langchain_groq import ChatGroq
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
@@ -9,6 +10,19 @@ from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
+
+def log_chat(question, answer):
+    """Log chat interactions to a file with timestamp"""
+    # Open log file in append mode with UTF-8 encoding
+    with open("chat_history.log", "a", encoding="utf-8") as f:
+        # Get current timestamp
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # Write timestamp separator
+        f.write(f"--- {timestamp} ---\n")
+        # Write user question
+        f.write(f"User: {question}\n")
+        # Write bot answer
+        f.write(f"Phytobot: {answer}\n\n")
 
 def get_phytobot_response(user_query):
     # Set up free Embedding model
@@ -55,5 +69,8 @@ def get_phytobot_response(user_query):
     
     # Get source documents for display
     sources = retriever.invoke(user_query)
+    
+    # Log the chat interaction
+    log_chat(user_query, response)
     
     return response, sources
