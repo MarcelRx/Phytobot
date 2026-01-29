@@ -8,9 +8,8 @@ venv/
 .env
 
 # Project Specific
-screenshots/
 vector_db/
-temp.png/
+temp.jpg/
 screenshots/ident_*.png
 
 # OS
