@@ -1,86 +1,112 @@
 import streamlit as st
 import os
-import datetime
 from src.vision_module import identify_plant
 from src.bot_logic import get_phytobot_response
 
-# Set initial page settings
-st.set_page_config(page_title="Phytobot", page_icon="🌿", layout="centered")
+# Page Config
+st.set_page_config(
+    page_title="Phytobot AI",
+    page_icon="🌿",
+    layout="centered"
+)
 
-# Ensure screenshot folder exists
-if not os.path.exists("./screenshots"):
-    os.makedirs("./screenshots")
+# Custom CSS
+st.markdown("""
+<style>
+.stMainBlockContainer {
+    padding-bottom: 120px !important;
+}
+footer {visibility: hidden;}
+header {visibility: hidden;}
+</style>
+""", unsafe_allow_html=True)
 
-# Create main title and header
+# Session State
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+if "uploader_key" not in st.session_state:
+    st.session_state.uploader_key = 0
+
+# Header
 st.title("🌿 Phytobot")
-st.subheader("Herbal Medicine Intelligent Assistant")
-st.markdown("---")
+st.caption("Herbal Medicine Intelligent Assistant")
+st.divider()
 
-# Create tab layout for different functionalities
-tab1, tab2 = st.tabs(["Identification", "Expert Chat"])
+# Chat History
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
+        if msg.get("trust_info"):
+            st.info(msg["trust_info"])
+        if msg.get("sources"):
+            with st.expander("Sources (Internal Database)"):
+                for doc in msg["sources"]:
+                    src = os.path.basename(
+                        doc.metadata.get("source", "Database")
+                    )
+                    page = doc.metadata.get("page", "N/A")
+                    st.write(f"📖 {src} — Page {page}")
 
-with tab1:
-    st.header("Plant Identification")
-    # Create image upload interface
-    uploaded_file = st.file_uploader("Upload a clear photo of the plant", type=['jpg', 'png', 'jpeg'])
-    
-    if uploaded_file:
-        # Display uploaded image
-        st.image(uploaded_file, caption="Uploaded Image", width=300)
-        
-        if st.button("Identify & Analyze"):
-            # Save image with timestamp for archive and demo
-            ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            temp_path = f"./screenshots/ident_{ts}.png"
-            
-            # Save static file for README display (optional)
-            readme_demo_path = "./screenshots/detection_example.png"
-            
-            # Get file bytes and save to both paths
-            file_bytes = uploaded_file.getbuffer()
-            with open(temp_path, "wb") as f:
-                f.write(file_bytes)
-            with open(readme_demo_path, "wb") as f:
-                f.write(file_bytes)
-                
-            # Analyze image with loading indicator
-            with st.spinner("Analyzing image..."):
-                name, prob = identify_plant(temp_path)
-                
-                # Check if plant was identified
-                if name:
-                    # Display warning if confidence is low
-                    if prob < 0.40:
-                        st.warning(f"Low confidence: {prob:.2%}. Please check if the plant matches: {name}")
-                    else:
-                        st.success(f"Identified as: {name} ({prob:.2%})")
-                    
-                    # Automatically call RAG for scientific information
-                    query = f"Provide detailed medicinal info about {name} from the database."
-                    response, _ = get_phytobot_response(query)
-                    st.info("Scientific Information (from WHO/Encyclopedia):")
-                    st.markdown(response)
-                else:
-                    st.error("Could not identify the plant. Try another photo.")
+# Sidebar
+with st.sidebar:
+    st.header("Attachments")
+    img_file = st.file_uploader(
+        "Upload plant photo",
+        type=["jpg", "png", "jpeg"],
+        key=f"u_{st.session_state.uploader_key}"
+    )
 
-with tab2:
-    st.header("Ask Phytobot")
-    # Create chat interface with example
-    user_msg = st.text_input("Example: What is ginger used for?")
-    
-    if user_msg:
-        # Process user query with loading indicator
-        with st.spinner("Searching trusted sources..."):
-            ans, docs = get_phytobot_response(user_msg)
-            st.markdown(ans)
-            
-            # Display extracted document sources
-            with st.expander("View Document Sources"):
-                for doc in docs:
-                    filename = os.path.basename(doc.metadata.get('source', 'Unknown'))
-                    page = doc.metadata.get('page', 'N/A')
-                    st.caption(f"File: {filename} | Page: {page}")
+# Chat Input
+user_text = st.chat_input("Ask about a medicinal plant...")
 
-# Display disclaimer in sidebar
-st.sidebar.markdown("### Disclaimer")
-st.sidebar.warning("This tool is for educational purposes only. Always consult a healthcare professional before using herbal remedies.")
+# Main Logic
+if user_text or img_file:
+
+    with st.chat_message("user"):
+        if img_file:
+            st.image(img_file, width=200)
+        if user_text:
+            st.markdown(user_text)
+
+    st.session_state.messages.append({
+        "role": "user",
+        "content": user_text if user_text else "Image uploaded"
+    })
+
+    with st.chat_message("assistant"):
+        with st.spinner("Analyzing..."):
+
+            query = user_text if user_text else "Identify this plant."
+            trust_info = ""
+
+            if img_file:
+                temp_path = f"./temp_{st.session_state.uploader_key}.png"
+                with open(temp_path, "wb") as f:
+                    f.write(img_file.getbuffer())
+
+                plant_name, prob = identify_plant(temp_path)
+
+                if plant_name:
+                    query = f"Medicinal uses of {plant_name}. {user_text or ''}"
+                    trust_info = (
+                        f"{plant_name} identified with {prob:.1%} confidence"
+                    )
+
+            response_gen, docs, source_type = get_phytobot_response(query)
+
+            st.markdown(f"**Source Type:** {source_type}")
+            full_answer = st.write_stream(response_gen)
+
+            if trust_info:
+                st.success(f"🌿 {trust_info}")
+
+    st.session_state.messages.append({
+        "role": "assistant",
+        "content": full_answer,
+        "sources": docs,
+        "trust_info": trust_info
+    })
+
+    if img_file:
+        st.session_state.uploader_key += 1
+        st.rerun()

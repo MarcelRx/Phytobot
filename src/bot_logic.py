@@ -1,76 +1,81 @@
 import os
-import datetime
+from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnablePassthrough
-from langchain_core.output_parsers import StrOutputParser
-from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
 
-def log_chat(question, answer):
-    """Log chat interactions to a file with timestamp"""
-    # Open log file in append mode with UTF-8 encoding
-    with open("chat_history.log", "a", encoding="utf-8") as f:
-        # Get current timestamp
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        # Write timestamp separator
-        f.write(f"--- {timestamp} ---\n")
-        # Write user question
-        f.write(f"User: {question}\n")
-        # Write bot answer
-        f.write(f"Phytobot: {answer}\n\n")
+
+def is_database_hit(docs, min_chars=300):
+    if not docs:
+        return False
+    total_chars = sum(len(doc.page_content) for doc in docs)
+    return total_chars >= min_chars
+
 
 def get_phytobot_response(user_query):
-    # Set up free Embedding model
-    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-    
-    # Load vector database
-    vector_db = Chroma(persist_directory="./vector_db", embedding_function=embeddings)
-    retriever = vector_db.as_retriever(search_kwargs={"k": 3})
+    """
+    Uses existing ChromaDB located at ./vector_db
+    """
 
-    # Configure Groq model
+    embeddings = HuggingFaceEmbeddings(
+        model_name="all-MiniLM-L6-v2"
+    )
+
+    # ✅ LOAD existing database (no creation, no overwrite)
+    vector_db = Chroma(
+        persist_directory="./vector_db",
+        embedding_function=embeddings
+    )
+
+    retriever = vector_db.as_retriever(search_kwargs={"k": 3})
+    docs = retriever.invoke(user_query)
+
+    use_database = is_database_hit(docs)
+
+    if use_database:
+        context = "\n\n".join(doc.page_content for doc in docs)
+        source_type = "Verified Internal Database (vector_db)"
+    else:
+        context = ""
+        source_type = "Internet Sources"
+
     llm = ChatGroq(
         groq_api_key=os.getenv("GROQ_API_KEY"),
         model_name="llama-3.1-8b-instant",
-        temperature=0.1
+        temperature=0.2,
+        streaming=True
     )
 
-    # Design response template with Phytobot rules
-    template = """You are Phytobot, a medicinal plant expert. 
-    Use the following pieces of retrieved context from verified sources to answer the user's question. 
-    If you don't know the answer, just say that you don't know, don't try to make up an answer.
-    
-    Always include a medical disclaimer.
-    State if information is from internal database.
+    prompt_template = """
+You are Phytobot, a medicinal plant expert.
 
-    Context: {context}
-    Question: {question}
-    Answer:"""
-    
-    prompt = ChatPromptTemplate.from_template(template)
+RULES:
+- If context is provided, ONLY use the context.
+- If context is empty, use general herbal knowledge AND cite reputable online sources
+  (WHO website, PubMed, NHS, scientific reviews).
+- Never diagnose disease.
+- Always include precautions and contraindications.
+- Dosage must be general ranges only.
+- Always end with:
+  "This information is not a substitute for professional medical advice."
 
-    # Build RAG chain
-    def format_docs(docs):
-        return "\n\n".join(doc.page_content for doc in docs)
+Context:
+{context}
 
-    rag_chain = (
-        {"context": retriever | format_docs, "question": RunnablePassthrough()}
-        | prompt
-        | llm
-        | StrOutputParser()
-    )
+Question:
+{question}
+"""
 
-    # Execute query and get response
-    response = rag_chain.invoke(user_query)
-    
-    # Get source documents for display
-    sources = retriever.invoke(user_query)
-    
-    # Log the chat interaction
-    log_chat(user_query, response)
-    
-    return response, sources
+    prompt = ChatPromptTemplate.from_template(prompt_template)
+    chain = prompt | llm
+
+    def stream_response():
+        for chunk in chain.stream(
+            {"context": context, "question": user_query}
+        ):
+            yield getattr(chunk, "content", str(chunk))
+
+    return stream_response(), (docs if use_database else []), source_type
