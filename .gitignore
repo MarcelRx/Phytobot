@@ -1,16 +1,16 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-
-# Environment
+# Python environment
 venv/
+__pycache__/
+*.pyc
+
+# Secrets & Config (CRITICAL)
 .env
+.streamlit/secrets.toml
 
-# Project Specific
+# Local Databases & Logs
 vector_db/
-temp.jpg/
-screenshots/ident_*.png
+chat_logs.txt
+temp.jpg
 
-# OS
+# OS files
 .DS_Store

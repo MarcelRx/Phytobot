@@ -1,12 +1,23 @@
+# Core Environment Fixes
+numpy==1.26.4
+opencv-python==4.11.0.86
+
+# Streamlit & UI
 streamlit
+python-dotenv
+pillow
+
+# AI & RAG
 langchain
 langchain-community
 langchain-groq
 langchain-huggingface
 langchain-chroma
 langchain-text-splitters
-python-dotenv
-requests
-pillow
-pypdf
 sentence-transformers
+torch
+pypdf
+
+# Search & Tools
+langchain-tavily
+requests

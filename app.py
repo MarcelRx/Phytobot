@@ -1,112 +1,52 @@
 import streamlit as st
-import os
 from src.vision_module import identify_plant
 from src.bot_logic import get_phytobot_response
 
 # Page Config
-st.set_page_config(
-    page_title="Phytobot AI",
-    page_icon="🌿",
-    layout="centered"
-)
+st.set_page_config(page_title="Phytobot 🌿", layout="wide", page_icon="🌿")
+st.title("Phytobot: Your AI Herbalist 🌿")
 
-# Custom CSS
-st.markdown("""
-<style>
-.stMainBlockContainer {
-    padding-bottom: 120px !important;
-}
-footer {visibility: hidden;}
-header {visibility: hidden;}
-</style>
-""", unsafe_allow_html=True)
+# Initialize session state for the chat input
+if 'query_value' not in st.session_state:
+    st.session_state.query_value = ""
 
-# Session State
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-if "uploader_key" not in st.session_state:
-    st.session_state.uploader_key = 0
+tab1, tab2 = st.tabs(["Identify Plant", "Symptom & Recipe Expert"])
 
-# Header
-st.title("🌿 Phytobot")
-st.caption("Herbal Medicine Intelligent Assistant")
-st.divider()
+with tab1:
+    uploaded_file = st.file_uploader("Upload a plant photo", type=['jpg','png','jpeg'])
+    if uploaded_file:
+        st.image(uploaded_file, width=300)
+        if st.button("Identify & Analyze"):
+            with open("temp.jpg", "wb") as f: f.write(uploaded_file.getbuffer())
+            name, score = identify_plant("temp.jpg")
+            
+            if name == "BLURRY_IMAGE":
+                st.error(f"PHOTO ALERT: Too blurry (Score: {score:.1f}). Please steady your hand and try again.")
+            elif name:
+                st.success(f"Identified: {name} ({score:.1%})")
+                with st.spinner("Retrieving medicinal profile..."):
+                    ans, _ = get_phytobot_response(f"Scientific profile and safety of {name}")
+                    st.markdown(ans)
+            else:
+                st.warning("Could not identify. Try a closer shot of the leaves.")
 
-# Chat History
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
-        if msg.get("trust_info"):
-            st.info(msg["trust_info"])
-        if msg.get("sources"):
-            with st.expander("Sources (Internal Database)"):
-                for doc in msg["sources"]:
-                    src = os.path.basename(
-                        doc.metadata.get("source", "Database")
-                    )
-                    page = doc.metadata.get("page", "N/A")
-                    st.write(f"📖 {src} — Page {page}")
+with tab2:
+    st.markdown("### 🍵 How can I help you today?")
+    
+    # Suggestion Buttons
+    cols = st.columns(3)
+    if cols[0].button("Recipe for Sleep"): st.session_state.query_value = "How do I make a tea for better sleep?"
+    if cols[1].button("Help with Cough"): st.session_state.query_value = "What herbs help with a dry cough?"
+    if cols[2].button("Learn about Ginger"): st.session_state.query_value = "Tell me the benefits and side effects of Ginger."
 
-# Sidebar
-with st.sidebar:
-    st.header("Attachments")
-    img_file = st.file_uploader(
-        "Upload plant photo",
-        type=["jpg", "png", "jpeg"],
-        key=f"u_{st.session_state.uploader_key}"
-    )
+    user_msg = st.text_input("Describe symptoms, ask for a recipe, or learn about a plant:", value=st.session_state.query_value)
 
-# Chat Input
-user_text = st.chat_input("Ask about a medicinal plant...")
+    if user_msg:
+        with st.spinner("Consulting WHO Database & Internet..."):
+            ans, docs = get_phytobot_response(user_msg)
+            st.markdown(ans)
+            with st.expander("View PDF Sources"):
+                for d in docs:
+                    st.caption(f"Source: {d.metadata.get('source')} | Page: {d.metadata.get('page','N/A')}")
 
-# Main Logic
-if user_text or img_file:
-
-    with st.chat_message("user"):
-        if img_file:
-            st.image(img_file, width=200)
-        if user_text:
-            st.markdown(user_text)
-
-    st.session_state.messages.append({
-        "role": "user",
-        "content": user_text if user_text else "Image uploaded"
-    })
-
-    with st.chat_message("assistant"):
-        with st.spinner("Analyzing..."):
-
-            query = user_text if user_text else "Identify this plant."
-            trust_info = ""
-
-            if img_file:
-                temp_path = f"./temp_{st.session_state.uploader_key}.png"
-                with open(temp_path, "wb") as f:
-                    f.write(img_file.getbuffer())
-
-                plant_name, prob = identify_plant(temp_path)
-
-                if plant_name:
-                    query = f"Medicinal uses of {plant_name}. {user_text or ''}"
-                    trust_info = (
-                        f"{plant_name} identified with {prob:.1%} confidence"
-                    )
-
-            response_gen, docs, source_type = get_phytobot_response(query)
-
-            st.markdown(f"**Source Type:** {source_type}")
-            full_answer = st.write_stream(response_gen)
-
-            if trust_info:
-                st.success(f"🌿 {trust_info}")
-
-    st.session_state.messages.append({
-        "role": "assistant",
-        "content": full_answer,
-        "sources": docs,
-        "trust_info": trust_info
-    })
-
-    if img_file:
-        st.session_state.uploader_key += 1
-        st.rerun()
+st.sidebar.warning("Disclaimer: This is an educational tool. Herbal remedies can interact with medications. Always consult a doctor.")
