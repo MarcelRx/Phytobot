@@ -31,7 +31,7 @@ with tab1:
                 st.warning("Could not identify. Try a closer shot of the leaves.")
 
 with tab2:
-    st.markdown("### 🍵 How can I help you today?")
+    st.markdown("### How can I help you today?")
     
     # Suggestion Buttons
     cols = st.columns(3)

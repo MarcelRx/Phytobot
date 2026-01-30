@@ -59,7 +59,7 @@ def process_documents():
         persist_directory=persist_directory
     )
 
-    print(f"✨ Database successfully saved to {persist_directory}.")
+    print(f"Database successfully saved to {persist_directory}.")
 
 
 # Run the function if script is executed directly

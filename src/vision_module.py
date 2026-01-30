@@ -90,7 +90,7 @@ def identify_plant(image_path):
 
     return None, 0
 
-# Test Block (Run this file directly to test) ---
+# Test Block (Run this file directly to test)
 if __name__ == "__main__":
     # Create a dummy image or use an existing one to test
     test_image = "test_plant.jpg" 
