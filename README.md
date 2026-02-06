@@ -10,10 +10,11 @@ Phytobot uses Llama 3.1 and RAG (Retrieval-Augmented Generation) to identify med
 * **Safety First:** Clear trust scores and medical disclaimers.
 
 ### Setup
-1. **Clone the repo:** `git clone <your-link>`
+1. **Clone the repo:** `https://github.com/MarcelRx/Phytobot.git`
 2. **Install dependencies:** `pip install -r requirements.txt`
 3. **Set up .env:** Add your `GROQ_API_KEY`, `TAVILY_API_KEY`, and `PLANTID_API_KEY`.
-4. **Run the app:** `streamlit run app.py`
+4. **Python3 src/processor.py** `vector_db` 
+5. **Run the app:** `streamlit run app.py`
 
 ### Medical Disclaimer
 This software is for educational purposes only. It is NOT a substitute for professional medical advice. Always consult a doctor before using herbal remedies.
