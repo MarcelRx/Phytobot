@@ -6,6 +6,7 @@ opencv-python==4.11.0.86
 streamlit
 python-dotenv
 pillow
+watchdog
 
 # AI & RAG
 langchain
@@ -15,7 +16,10 @@ langchain-huggingface
 langchain-chroma
 langchain-text-splitters
 sentence-transformers
-torch
+transformers==4.40.0
+accelerate==0.30.0
+torch==2.2.2
+torchvision==0.17.2
 pypdf
 
 # Search & Tools
