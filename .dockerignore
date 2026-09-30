@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Environment and secrets
+.env
+.env.local
+.streamlit/
+
+# Git
+.git/
+.gitignore
+
+# Development
+tests/
+.pytest_cache/
+.venv/
+venv/
+
+# Logs and temporary files
+*.log
+chat_logs.txt
+temp.jpg
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Documentation
+README.md
+LICENSE
+AGENTS.md

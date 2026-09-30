@@ -12,16 +12,17 @@ watchdog
 langchain
 langchain-community
 langchain-groq
-langchain-huggingface
 langchain-chroma
 langchain-text-splitters
 sentence-transformers
 transformers==4.40.0
 accelerate==0.30.0
 torch==2.2.2
-torchvision==0.17.2
 pypdf
 
 # Search & Tools
 langchain-tavily
 requests
+
+# Testing
+pytest
