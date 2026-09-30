@@ -1,7 +1,7 @@
 # Intelligent Fix: Inject 'nn' and 'torch' into builtins to prevent library-level NameErrors in Python 3.12
 import builtins
 import logging
-from typing import List, Tuple
+from typing import Any, Dict, List, Tuple
 
 import torch
 import torch.nn as nn
