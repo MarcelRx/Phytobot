@@ -31,6 +31,7 @@ class TestPhytobotResponse:
         )
 
         mock_vector_db = MagicMock()
+        # Mock separate retrievers for medicinal and safety
         mock_retriever = MagicMock()
         mock_retriever.invoke.return_value = [
             MagicMock(page_content="Test document 1"),
@@ -46,7 +47,8 @@ class TestPhytobotResponse:
         response, docs = get_phytobot_response("test query")
 
         assert response is not None
-        assert len(docs) == 2
+        # New implementation retrieves both medicinal and safety docs (2 + 2 = 4)
+        assert len(docs) == 4
         assert "medical advice" in response.lower()
 
     @patch("src.bot_logic.load_phytobot_resources")
@@ -97,7 +99,8 @@ class TestPhytobotResponse:
 
         # Should still return a response, not crash
         assert response is not None
-        assert len(docs) == 1
+        # New implementation retrieves both medicinal and safety docs (1 + 1 = 2)
+        assert len(docs) == 2
 
     @patch("src.bot_logic.load_phytobot_resources")
     def test_get_response_llm_failure(self, mock_load_resources):
@@ -120,6 +123,8 @@ class TestPhytobotResponse:
 
         # Should return error message, not crash
         assert response is not None
+        # Response is a string, not a MagicMock object
+        assert isinstance(response, str)
         assert "error" in response.lower()
         assert len(docs) == 0
 
@@ -169,6 +174,8 @@ class TestPhytobotResponse:
         response, docs = get_phytobot_response("test query")
 
         assert response is not None
+        # Response is a string, not a MagicMock object
+        assert isinstance(response, str)
         # The safety module should append the disclaimer
         from src.config import SafetyConfig
 
