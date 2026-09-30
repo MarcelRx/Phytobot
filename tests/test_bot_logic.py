@@ -131,7 +131,7 @@ class TestPhytobotResponse:
         # Response is a string, not a MagicMock object
         assert isinstance(response, str)
         # Error handling in bot_logic returns a string error message
-        assert "error" in response.lower() or "encountered an error" in response.lower()
+        assert "apologize" in response.lower() and "error" in response.lower()
         assert len(docs) == 0
 
     @patch("src.bot_logic.load_phytobot_resources")
