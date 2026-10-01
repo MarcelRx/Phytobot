@@ -80,7 +80,7 @@ class VectorDBConfig:
 class LLMConfig:
     """LLM configuration."""
 
-    MODEL_NAME = "llama-3.1-8b-instant"
+    MODEL_NAME = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
     TEMPERATURE = 0.1
     MAX_RETRIES = 2
 

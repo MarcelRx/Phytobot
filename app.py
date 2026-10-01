@@ -50,14 +50,14 @@ with tab1:
             else:
                 with open("temp.jpg", "wb") as f:
                     f.write(uploaded_file.getbuffer())
-                name, score = identify_plant("temp.jpg")
+                name, score, result_type = identify_plant("temp.jpg")
 
-                if name == "BLURRY_IMAGE":
+                if result_type.value == "blurry_image":
                     st.error(
                         f"PHOTO ALERT: Too blurry (Score: {score:.1f}). Please steady your hand and try again."
                     )
                     logger.info(f"Blurry image detected (score: {score:.1f})")
-                elif name:
+                elif result_type.value == "success" and name:
                     st.success(f"Identified: {name} ({score:.1%})")
                     with st.spinner(
                         "Retrieving medicinal profile and safety information..."
@@ -69,11 +69,30 @@ with tab1:
                         )
                         st.markdown(ans)
                         logger.info(f"Successfully retrieved profile for {name}")
-                elif name == "NOT_A_PLANT":
+                elif result_type.value == "not_a_plant":
                     st.warning(
                         "This image does not appear to contain a plant. Please try a different photo."
                     )
                     logger.info("Image identified as not a plant")
+                elif result_type.value == "rate_limit":
+                    st.warning(
+                        "Plant identification is temporarily unavailable because the identification service is rate-limited. Please try again later."
+                    )
+                    logger.warning("Plant identification failed due to rate limiting")
+                elif result_type.value == "auth_error":
+                    st.error(
+                        "Plant identification service authentication failed. Please contact support."
+                    )
+                    logger.error(
+                        "Plant identification failed due to authentication error"
+                    )
+                elif result_type.value in ("network_error", "timeout"):
+                    st.warning(
+                        "Plant identification service is temporarily unavailable due to network issues. Please try again later."
+                    )
+                    logger.warning(
+                        f"Plant identification failed due to {result_type.value}"
+                    )
                 else:
                     st.warning("Could not identify. Try a closer shot of the leaves.")
                     logger.warning("Plant identification failed")

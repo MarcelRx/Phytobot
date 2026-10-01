@@ -1,6 +1,8 @@
 import base64
 import logging
 import os
+import time
+from enum import Enum
 from typing import Optional, Tuple
 
 import cv2
@@ -14,6 +16,20 @@ load_dotenv()
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+
+class PlantIdentificationResult(Enum):
+    """Enumeration of plant identification result types."""
+
+    SUCCESS = "success"
+    BLURRY_IMAGE = "blurry_image"
+    NOT_A_PLANT = "not_a_plant"
+    RATE_LIMIT = "rate_limit"
+    AUTH_ERROR = "auth_error"
+    NETWORK_ERROR = "network_error"
+    TIMEOUT = "timeout"
+    API_ERROR = "api_error"
+    NO_PLANT_IDENTIFIED = "no_plant_identified"
 
 
 def check_blur(image_path: str, threshold: int = None) -> Tuple[bool, float]:
@@ -51,7 +67,9 @@ def check_blur(image_path: str, threshold: int = None) -> Tuple[bool, float]:
         return False, 0
 
 
-def identify_plant(image_path: str) -> Tuple[Optional[str], float]:
+def identify_plant(
+    image_path: str,
+) -> Tuple[Optional[str], float, PlantIdentificationResult]:
     """
     Identifies a plant from an image using the Plant.id API.
 
@@ -59,107 +77,148 @@ def identify_plant(image_path: str) -> Tuple[Optional[str], float]:
         image_path: Path to the image file
 
     Returns:
-        Tuple of (scientific_name, probability_score) or ("BLURRY_IMAGE", score) or (None, 0)
+        Tuple of (scientific_name, probability_score, result_type)
+        result_type indicates the status of the identification attempt
     """
     # First, check image quality (The "Alarm" logic)
     is_sharp, score = check_blur(image_path)
     if not is_sharp:
-        return "BLURRY_IMAGE", score
+        return "BLURRY_IMAGE", score, PlantIdentificationResult.BLURRY_IMAGE
 
     # Prepare API details
     api_key = APIConfig.PLANTID_API_KEY
     if not api_key:
         logger.error("PLANTID_API_KEY not configured")
-        return None, 0
+        return None, 0, PlantIdentificationResult.AUTH_ERROR
 
     # Using v3 endpoint for the most accurate and up-to-date results
     api_url = "https://api.plant.id/v3/identification"
 
-    try:
-        # Encode image to Base64
-        with open(image_path, "rb") as file:
-            base64_image = base64.b64encode(file.read()).decode("ascii")
+    # Retry configuration for rate limiting
+    max_retries = 1
+    retry_delay = 2  # seconds
 
-        # Define request payload
-        payload = {
-            "images": [base64_image],
-            "latitude": 49.1951,  # Optional: Change to your coordinates for better accuracy
-            "longitude": 16.6068,
-            "similar_images": True,
-        }
+    for attempt in range(max_retries + 1):
+        try:
+            # Encode image to Base64
+            with open(image_path, "rb") as file:
+                base64_image = base64.b64encode(file.read()).decode("ascii")
 
-        headers = {"Content-Type": "application/json", "Api-Key": api_key}
+            # Define request payload
+            payload = {
+                "images": [base64_image],
+                "latitude": 49.1951,  # Optional: Change to your coordinates for better accuracy
+                "longitude": 16.6068,
+                "similar_images": True,
+            }
 
-        # Send POST request to Plant.id with timeout
-        response = requests.post(
-            api_url,
-            json=payload,
-            headers=headers,
-            params={"details": "common_names,url,description"},
-            timeout=APIConfig.PLANTID_TIMEOUT,
-        )
+            headers = {"Content-Type": "application/json", "Api-Key": api_key}
 
-        # Handle the response
-        if response.status_code in (200, 201):
-            try:
-                result = response.json()
-            except ValueError as e:
-                logger.error(f"Failed to parse JSON response: {e}")
-                return None, 0
-
-            # Check if a plant was actually found in the image
-            if not result.get("result", {}).get("is_plant", {}).get("binary", False):
-                logger.info("Image does not contain a plant")
-                return "NOT_A_PLANT", 0
-
-            # Get the top suggestion
-            suggestions = (
-                result.get("result", {})
-                .get("classification", {})
-                .get("suggestions", [])
+            # Send POST request to Plant.id with timeout
+            response = requests.post(
+                api_url,
+                json=payload,
+                headers=headers,
+                params={"details": "common_names,url,description"},
+                timeout=APIConfig.PLANTID_TIMEOUT,
             )
-            if suggestions:
-                top_match = suggestions[0]
-                scientific_name = top_match.get("name")
-                probability = top_match.get("probability")
 
-                if scientific_name and probability is not None:
-                    logger.info(
-                        f"Identified plant: {scientific_name} (confidence: {probability:.2%})"
-                    )
-                    return scientific_name, probability
+            # Handle the response
+            if response.status_code in (200, 201):
+                try:
+                    result = response.json()
+                except ValueError as e:
+                    logger.error(f"Failed to parse JSON response: {e}")
+                    return None, 0, PlantIdentificationResult.API_ERROR
+
+                # Check if a plant was actually found in the image
+                if (
+                    not result.get("result", {})
+                    .get("is_plant", {})
+                    .get("binary", False)
+                ):
+                    logger.info("Image does not contain a plant")
+                    return "NOT_A_PLANT", 0, PlantIdentificationResult.NOT_A_PLANT
+
+                # Get the top suggestion
+                suggestions = (
+                    result.get("result", {})
+                    .get("classification", {})
+                    .get("suggestions", [])
+                )
+                if suggestions:
+                    top_match = suggestions[0]
+                    scientific_name = top_match.get("name")
+                    probability = top_match.get("probability")
+
+                    if scientific_name and probability is not None:
+                        logger.info(
+                            f"Identified plant: {scientific_name} (confidence: {probability:.2%})"
+                        )
+                        return (
+                            scientific_name,
+                            probability,
+                            PlantIdentificationResult.SUCCESS,
+                        )
+                    else:
+                        logger.warning("Malformed suggestion data received")
+                        return None, 0, PlantIdentificationResult.API_ERROR
                 else:
-                    logger.warning("Malformed suggestion data received")
-                    return None, 0
+                    logger.warning("No suggestions in API response")
+                    return None, 0, PlantIdentificationResult.NO_PLANT_IDENTIFIED
+            elif response.status_code == 401:
+                logger.error("Plant.id API authentication failed")
+                return None, 0, PlantIdentificationResult.AUTH_ERROR
+            elif response.status_code == 429:
+                logger.warning("Plant.id API rate limit exceeded")
+                # Check for Retry-After header
+                retry_after = response.headers.get("Retry-After")
+                if retry_after and attempt < max_retries:
+                    try:
+                        wait_time = int(retry_after)
+                        logger.info(
+                            f"Rate limited. Waiting {wait_time} seconds before retry..."
+                        )
+                        time.sleep(wait_time)
+                        continue
+                    except ValueError:
+                        # If Retry-After is not a number, use default delay
+                        logger.info(
+                            f"Rate limited. Waiting {retry_delay} seconds before retry..."
+                        )
+                        time.sleep(retry_delay)
+                        continue
+                elif attempt < max_retries:
+                    logger.info(
+                        f"Rate limited. Waiting {retry_delay} seconds before retry..."
+                    )
+                    time.sleep(retry_delay)
+                    continue
+                else:
+                    logger.error(
+                        "Plant.id API rate limit exceeded (max retries reached)"
+                    )
+                    return None, 0, PlantIdentificationResult.RATE_LIMIT
             else:
-                logger.warning("No suggestions in API response")
-                return None, 0
-        elif response.status_code == 401:
-            logger.error("Plant.id API authentication failed")
-            return None, 0
-        elif response.status_code == 429:
-            logger.error("Plant.id API rate limit exceeded")
-            return None, 0
-        else:
-            logger.error(
-                f"Plant.id API error: {response.status_code} - {response.text}"
-            )
-            return None, 0
+                logger.error(
+                    f"Plant.id API error: {response.status_code} - {response.text}"
+                )
+                return None, 0, PlantIdentificationResult.API_ERROR
 
-    except requests.exceptions.Timeout:
-        logger.error("Plant.id API request timed out")
-        return None, 0
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Plant.id API request failed: {e}")
-        return None, 0
-    except IOError as e:
-        logger.error(f"Failed to read image file: {e}")
-        return None, 0
-    except Exception as e:
-        logger.error(f"Unexpected error in plant identification: {e}")
-        return None, 0
+        except requests.exceptions.Timeout:
+            logger.error("Plant.id API request timed out")
+            return None, 0, PlantIdentificationResult.TIMEOUT
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Plant.id API request failed: {e}")
+            return None, 0, PlantIdentificationResult.NETWORK_ERROR
+        except IOError as e:
+            logger.error(f"Failed to read image file: {e}")
+            return None, 0, PlantIdentificationResult.API_ERROR
+        except Exception as e:
+            logger.error(f"Unexpected error in plant identification: {e}")
+            return None, 0, PlantIdentificationResult.API_ERROR
 
-    return None, 0
+    return None, 0, PlantIdentificationResult.API_ERROR
 
 
 # Test Block (Run this file directly to test)

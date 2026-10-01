@@ -315,6 +315,19 @@ def get_phytobot_response(
         return response_content, internal_docs
 
     except Exception as e:
-        logger.error(f"Critical error in get_phytobot_response: {e}")
+        # Check if this is a Groq model/API error
+        error_str = str(e)
+        if (
+            "model_not_found" in error_str
+            or "does not exist" in error_str
+            or "404" in error_str
+        ):
+            logger.error(f"Groq model not found or unavailable: {LLMConfig.MODEL_NAME}")
+        elif "401" in error_str or "authentication" in error_str.lower():
+            logger.error("Groq API authentication failed")
+        elif "429" in error_str or "rate limit" in error_str.lower():
+            logger.error("Groq API rate limit exceeded")
+        else:
+            logger.error(f"Critical error in get_phytobot_response: {e}")
         error_message = "I apologize, but I encountered an error processing your request. Please try again later."
         return error_message, []

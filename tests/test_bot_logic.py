@@ -189,3 +189,79 @@ class TestPhytobotResponse:
         from src.config import SafetyConfig
 
         assert SafetyConfig.STANDARD_DISCLAIMER in response
+
+    @patch("src.bot_logic.load_phytobot_resources")
+    def test_get_response_model_not_found_error(self, mock_load_resources):
+        """Test response generation when Groq model is not found."""
+        # Mock resources with model not found error
+        mock_llm = MagicMock()
+        mock_llm.invoke.side_effect = Exception(
+            "Error code: 404 - {'error': {'message': 'The model `llama-3.1-8b-instant` does not exist or you do not have access to it.', 'type': 'invalid_request_error', 'code': 'model_not_found'}}"
+        )
+
+        mock_vector_db = MagicMock()
+        mock_retriever = MagicMock()
+        mock_retriever.invoke.return_value = []
+        mock_vector_db.as_retriever.return_value = mock_retriever
+
+        mock_search = MagicMock()
+        mock_search.invoke.return_value = []
+
+        mock_load_resources.return_value = (None, mock_vector_db, mock_llm, mock_search)
+
+        response, docs = get_phytobot_response("test query")
+
+        # Should return error message, not crash
+        assert response is not None
+        assert isinstance(response, str)
+        assert len(docs) == 0
+
+    @patch("src.bot_logic.load_phytobot_resources")
+    def test_get_response_auth_error(self, mock_load_resources):
+        """Test response generation when Groq authentication fails."""
+        # Mock resources with auth error
+        mock_llm = MagicMock()
+        mock_llm.invoke.side_effect = Exception(
+            "Error code: 401 - Authentication failed"
+        )
+
+        mock_vector_db = MagicMock()
+        mock_retriever = MagicMock()
+        mock_retriever.invoke.return_value = []
+        mock_vector_db.as_retriever.return_value = mock_retriever
+
+        mock_search = MagicMock()
+        mock_search.invoke.return_value = []
+
+        mock_load_resources.return_value = (None, mock_vector_db, mock_llm, mock_search)
+
+        response, docs = get_phytobot_response("test query")
+
+        # Should return error message, not crash
+        assert response is not None
+        assert isinstance(response, str)
+        assert len(docs) == 0
+
+    @patch("src.bot_logic.load_phytobot_resources")
+    def test_get_response_rate_limit_error(self, mock_load_resources):
+        """Test response generation when Groq rate limit is exceeded."""
+        # Mock resources with rate limit error
+        mock_llm = MagicMock()
+        mock_llm.invoke.side_effect = Exception("Error code: 429 - Rate limit exceeded")
+
+        mock_vector_db = MagicMock()
+        mock_retriever = MagicMock()
+        mock_retriever.invoke.return_value = []
+        mock_vector_db.as_retriever.return_value = mock_retriever
+
+        mock_search = MagicMock()
+        mock_search.invoke.return_value = []
+
+        mock_load_resources.return_value = (None, mock_vector_db, mock_llm, mock_search)
+
+        response, docs = get_phytobot_response("test query")
+
+        # Should return error message, not crash
+        assert response is not None
+        assert isinstance(response, str)
+        assert len(docs) == 0
