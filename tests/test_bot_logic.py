@@ -196,7 +196,7 @@ class TestPhytobotResponse:
         # Mock resources with model not found error
         mock_llm = MagicMock()
         mock_llm.invoke.side_effect = Exception(
-            "Error code: 404 - {'error': {'message': 'The model `llama-3.1-8b-instant` does not exist or you do not have access to it.', 'type': 'invalid_request_error', 'code': 'model_not_found'}}"
+            "Error code: 404 - {'error': {'message': 'The model `invalid-model` does not exist or you do not have access to it.', 'type': 'invalid_request_error', 'code': 'model_not_found'}}"
         )
 
         mock_vector_db = MagicMock()

@@ -266,6 +266,45 @@ class TestPlantIdentification:
     @patch("src.vision_module.check_blur")
     @patch("src.vision_module.requests.post")
     @patch("src.vision_module.APIConfig")
+    def test_identify_plant_rate_limit_retry_after_capped(
+        self, mock_config, mock_post, mock_check_blur, tmp_path
+    ):
+        """Test plant identification with HTTP 429 and large Retry-After header (capped at max)."""
+        mock_config.PLANTID_API_KEY = "test_key"
+        mock_check_blur.return_value = (True, 100.0)
+
+        # Mock 429 response with large Retry-After header (should be capped at 60s)
+        mock_response_429 = MagicMock()
+        mock_response_429.status_code = 429
+        mock_response_429.headers = {"Retry-After": "300"}
+
+        # Mock successful response after retry
+        mock_response_success = MagicMock()
+        mock_response_success.status_code = 200
+        mock_response_success.json.return_value = {
+            "result": {
+                "is_plant": {"binary": True},
+                "classification": {
+                    "suggestions": [{"name": "Rosa canina", "probability": 0.95}]
+                },
+            }
+        }
+
+        # First call returns 429, second call succeeds
+        mock_post.side_effect = [mock_response_429, mock_response_success]
+
+        img = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)
+        img_path = str(tmp_path / "test.jpg")
+        cv2.imwrite(img_path, img)
+
+        name, score, result_type = identify_plant(img_path)
+        assert name == "Rosa canina"
+        assert score == 0.95
+        assert result_type == PlantIdentificationResult.SUCCESS
+
+    @patch("src.vision_module.check_blur")
+    @patch("src.vision_module.requests.post")
+    @patch("src.vision_module.APIConfig")
     def test_identify_plant_auth_error_401(
         self, mock_config, mock_post, mock_check_blur, tmp_path
     ):
@@ -286,6 +325,80 @@ class TestPlantIdentification:
         assert name is None
         assert score == 0
         assert result_type == PlantIdentificationResult.AUTH_ERROR
+
+    @patch("src.vision_module.check_blur")
+    @patch("src.vision_module.requests.post")
+    @patch("src.vision_module.APIConfig")
+    def test_identify_plant_auth_error_403(
+        self, mock_config, mock_post, mock_check_blur, tmp_path
+    ):
+        """Test plant identification with HTTP 403 authorization error."""
+        mock_config.PLANTID_API_KEY = "test_key"
+        mock_check_blur.return_value = (True, 100.0)
+
+        # Mock 403 response
+        mock_response = MagicMock()
+        mock_response.status_code = 403
+        mock_post.return_value = mock_response
+
+        img = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)
+        img_path = str(tmp_path / "test.jpg")
+        cv2.imwrite(img_path, img)
+
+        name, score, result_type = identify_plant(img_path)
+        assert name is None
+        assert score == 0
+        assert result_type == PlantIdentificationResult.AUTH_ERROR
+
+    @patch("src.vision_module.check_blur")
+    @patch("src.vision_module.requests.post")
+    @patch("src.vision_module.APIConfig")
+    def test_identify_plant_bad_request_400(
+        self, mock_config, mock_post, mock_check_blur, tmp_path
+    ):
+        """Test plant identification with HTTP 400 bad request."""
+        mock_config.PLANTID_API_KEY = "test_key"
+        mock_check_blur.return_value = (True, 100.0)
+
+        # Mock 400 response
+        mock_response = MagicMock()
+        mock_response.status_code = 400
+        mock_response.text = "Bad request"
+        mock_post.return_value = mock_response
+
+        img = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)
+        img_path = str(tmp_path / "test.jpg")
+        cv2.imwrite(img_path, img)
+
+        name, score, result_type = identify_plant(img_path)
+        assert name is None
+        assert score == 0
+        assert result_type == PlantIdentificationResult.API_ERROR
+
+    @patch("src.vision_module.check_blur")
+    @patch("src.vision_module.requests.post")
+    @patch("src.vision_module.APIConfig")
+    def test_identify_plant_server_error_500(
+        self, mock_config, mock_post, mock_check_blur, tmp_path
+    ):
+        """Test plant identification with HTTP 500 server error."""
+        mock_config.PLANTID_API_KEY = "test_key"
+        mock_check_blur.return_value = (True, 100.0)
+
+        # Mock 500 response
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.text = "Internal server error"
+        mock_post.return_value = mock_response
+
+        img = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)
+        img_path = str(tmp_path / "test.jpg")
+        cv2.imwrite(img_path, img)
+
+        name, score, result_type = identify_plant(img_path)
+        assert name is None
+        assert score == 0
+        assert result_type == PlantIdentificationResult.API_ERROR
 
     @patch("src.vision_module.check_blur")
     @patch("src.vision_module.requests.post")

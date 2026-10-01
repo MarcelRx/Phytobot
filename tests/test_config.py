@@ -68,8 +68,14 @@ class TestLLMConfig:
         assert 0 <= LLMConfig.TEMPERATURE <= 1
 
     def test_model_name_is_not_obsolete(self):
-        """Test that the default model is not the obsolete llama-3.1-8b-instant."""
+        """Test that the default model is not a deprecated model."""
         assert LLMConfig.MODEL_NAME != "llama-3.1-8b-instant"
+        assert LLMConfig.MODEL_NAME != "llama-3.3-70b-versatile"
+
+    def test_model_name_is_production_model(self):
+        """Test that the default model is a currently supported production model."""
+        # openai/gpt-oss-20b is the recommended production model as of 2026
+        assert LLMConfig.MODEL_NAME == "openai/gpt-oss-20b"
 
     @patch.dict(os.environ, {"GROQ_MODEL": "custom-model-name"}, clear=False)
     def test_model_name_from_env_var(self):

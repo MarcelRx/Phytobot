@@ -80,7 +80,7 @@ class VectorDBConfig:
 class LLMConfig:
     """LLM configuration."""
 
-    MODEL_NAME = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+    MODEL_NAME = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
     TEMPERATURE = 0.1
     MAX_RETRIES = 2
 

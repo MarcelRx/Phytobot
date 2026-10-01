@@ -96,7 +96,8 @@ def identify_plant(
 
     # Retry configuration for rate limiting
     max_retries = 1
-    retry_delay = 2  # seconds
+    default_retry_delay = 2  # seconds
+    max_retry_delay = 60  # seconds - cap on Retry-After header
 
     for attempt in range(max_retries + 1):
         try:
@@ -167,41 +168,58 @@ def identify_plant(
                     logger.warning("No suggestions in API response")
                     return None, 0, PlantIdentificationResult.NO_PLANT_IDENTIFIED
             elif response.status_code == 401:
-                logger.error("Plant.id API authentication failed")
+                logger.error("Plant.id API authentication failed (HTTP 401)")
                 return None, 0, PlantIdentificationResult.AUTH_ERROR
+            elif response.status_code == 403:
+                logger.error("Plant.id API authorization failed (HTTP 403)")
+                return None, 0, PlantIdentificationResult.AUTH_ERROR
+            elif response.status_code == 400:
+                logger.error(
+                    f"Plant.id API bad request (HTTP 400): {response.text[:200]}"
+                )
+                return None, 0, PlantIdentificationResult.API_ERROR
             elif response.status_code == 429:
-                logger.warning("Plant.id API rate limit exceeded")
-                # Check for Retry-After header
                 retry_after = response.headers.get("Retry-After")
-                if retry_after and attempt < max_retries:
-                    try:
-                        wait_time = int(retry_after)
+                logger.warning(
+                    f"Plant.id API rate limit exceeded (HTTP 429). Attempt {attempt + 1}/{max_retries + 1}. "
+                    f"Retry-After: {retry_after if retry_after else 'not provided'}"
+                )
+
+                if attempt < max_retries:
+                    if retry_after:
+                        try:
+                            wait_time = min(int(retry_after), max_retry_delay)
+                            logger.info(
+                                f"Rate limited. Waiting {wait_time} seconds before retry (capped at {max_retry_delay}s)..."
+                            )
+                            time.sleep(wait_time)
+                            continue
+                        except ValueError:
+                            # If Retry-After is not a number, use default delay
+                            logger.info(
+                                f"Invalid Retry-After header. Using default delay of {default_retry_delay} seconds..."
+                            )
+                            time.sleep(default_retry_delay)
+                            continue
+                    else:
                         logger.info(
-                            f"Rate limited. Waiting {wait_time} seconds before retry..."
+                            f"No Retry-After header. Using default delay of {default_retry_delay} seconds..."
                         )
-                        time.sleep(wait_time)
+                        time.sleep(default_retry_delay)
                         continue
-                    except ValueError:
-                        # If Retry-After is not a number, use default delay
-                        logger.info(
-                            f"Rate limited. Waiting {retry_delay} seconds before retry..."
-                        )
-                        time.sleep(retry_delay)
-                        continue
-                elif attempt < max_retries:
-                    logger.info(
-                        f"Rate limited. Waiting {retry_delay} seconds before retry..."
-                    )
-                    time.sleep(retry_delay)
-                    continue
                 else:
                     logger.error(
                         "Plant.id API rate limit exceeded (max retries reached)"
                     )
                     return None, 0, PlantIdentificationResult.RATE_LIMIT
+            elif response.status_code >= 500:
+                logger.error(
+                    f"Plant.id API service error (HTTP {response.status_code}): {response.text[:200]}"
+                )
+                return None, 0, PlantIdentificationResult.API_ERROR
             else:
                 logger.error(
-                    f"Plant.id API error: {response.status_code} - {response.text}"
+                    f"Plant.id API unexpected error (HTTP {response.status_code}): {response.text[:200]}"
                 )
                 return None, 0, PlantIdentificationResult.API_ERROR
 

@@ -48,9 +48,18 @@ with tab1:
                 st.error(error_msg)
                 logger.warning(f"Image validation failed: {error_msg}")
             else:
-                with open("temp.jpg", "wb") as f:
-                    f.write(uploaded_file.getbuffer())
-                name, score, result_type = identify_plant("temp.jpg")
+                # Use session state to prevent duplicate API calls on reruns
+                file_key = f"identified_{uploaded_file.name}_{uploaded_file.size}"
+                if file_key not in st.session_state:
+                    with open("temp.jpg", "wb") as f:
+                        f.write(uploaded_file.getbuffer())
+                    name, score, result_type = identify_plant("temp.jpg")
+                    st.session_state[file_key] = (name, score, result_type)
+                else:
+                    name, score, result_type = st.session_state[file_key]
+                    logger.info(
+                        f"Using cached identification result for {uploaded_file.name}"
+                    )
 
                 if result_type.value == "blurry_image":
                     st.error(
