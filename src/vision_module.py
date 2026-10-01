@@ -92,7 +92,7 @@ def identify_plant(
         return None, 0, PlantIdentificationResult.AUTH_ERROR
 
     # Using v3 endpoint for the most accurate and up-to-date results
-    api_url = "https://api.plant.id/v2/identification"
+    api_url = "https://api.plant.id/v3/identification"
 
     # Retry configuration for rate limiting
     max_retries = 1
