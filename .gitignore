@@ -7,8 +7,7 @@ __pycache__/
 .env
 .streamlit/secrets.toml
 
-# Local Databases & Logs
-vector_db/
+# Local Logs (vector_db is now committed for Streamlit Community Cloud)
 chat_logs.txt
 temp.jpg
 

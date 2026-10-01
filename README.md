@@ -61,43 +61,83 @@ Phytobot implements a multi-layered safety system:
 
 ### Production Deployment
 
-Phytobot uses Docker for production deployment with automated CI/CD via GitHub Actions.
+Phytobot is deployed to **Streamlit Community Cloud** directly from GitHub.
 
-#### GitHub Actions CI/CD
+#### Deployment Architecture
+
+```
+GitHub Repository
+        ↓
+Streamlit Community Cloud
+        ↓
+Live Phytobot
+```
+
+#### GitHub Actions CI
 
 The `.github/workflows/deploy.yml` workflow:
 
 1. **Test Gate**: Runs `pytest -q` on every push and pull request
-2. **Build & Push**: On successful tests to `main` branch, builds and pushes Docker image to Docker Hub
-3. **Deployment is blocked** if tests fail
+2. **Quality Gate**: Blocks if tests fail
+3. **No deployment**: Deployment is handled by Streamlit Community Cloud, not GitHub Actions
 
-#### Required GitHub Secrets/Variables
+#### Streamlit Community Cloud Deployment
 
-Configure these in your GitHub repository settings (Settings → Secrets and variables → Actions):
+1. **Prepare GitHub Repository**
+   - Ensure your code is pushed to GitHub
+   - The repository includes:
+     - `app.py` (entrypoint)
+     - `requirements.txt` (dependencies)
+     - `data/` (knowledge base PDFs)
+     - `data/negative/` (safety knowledge)
+     - `vector_db/` (pre-built vector database)
 
-**Docker Hub:**
+2. **Connect to Streamlit Community Cloud**
+   - Go to [share.streamlit.io](https://share.streamlit.io)
+   - Click "New app"
+   - Sign in with your GitHub account
+   - Authorize Streamlit to access your repositories
 
-- `DOCKER_USERNAME`: Your Docker Hub username
-- `DOCKER_PASSWORD`: Your Docker Hub password or access token
+3. **Select Repository**
+   - Choose the Phytobot repository
+   - Select the `main` branch
+   - Select `app.py` as the main file
 
-**Application Secrets** (set as environment variables in your deployment platform):
+4. **Configure Secrets**
+   In the Streamlit Community Cloud app settings, add these secrets:
+   - `GROQ_API_KEY`: Your Groq API key for Llama 3.1
+   - `PLANTID_API_KEY`: Your Plant.id API key for plant identification
+   - `TAVILY_API_KEY`: Your Tavily API key for web search
+   - `VECTOR_DB_PATH`: `./vector_db` (default, can be omitted)
 
-- `GROQ_API_KEY`: Groq API key for Llama 3.1
-- `PLANTID_API_KEY`: Plant.id API key for plant identification
-- `TAVILY_API_KEY`: Tavily API key for web search
-- `VECTOR_DB_PATH`: Path to vector database (default: `./vector_db`)
+5. **Deploy**
+   - Click "Deploy"
+   - Streamlit will install dependencies from `requirements.txt`
+   - The vector database is already included in the repository
+   - The app will start automatically
 
 #### Vector Database Strategy
 
-The production Docker image includes a **pre-built vector database**:
+The repository includes a **pre-built vector database** (`vector_db/`):
 
-- Built during `docker build` using `python src/processor.py`
+- Committed to the repository for reliable Streamlit Community Cloud deployment
 - Includes all PDF knowledge from `data/` (WHO monographs, herbal encyclopedia)
 - Includes negative knowledge from `data/negative/` (toxic plants, safety data)
-- Embedded in the image for fast, reliable startup
-- No persistent storage dependency required
+- No build step required at deployment time
+- Fast, reliable startup
 
-#### Docker Deployment
+**To rebuild the vector database** (after updating knowledge base):
+
+```bash
+python src/processor.py
+git add vector_db/
+git commit -m "Update vector database"
+git push
+```
+
+#### Optional: Docker Deployment (Local/Alternative)
+
+Docker can be used for local development or alternative deployment platforms.
 
 **Build locally:**
 
@@ -116,26 +156,7 @@ docker run -d \
   phytobot
 ```
 
-**Or pull from Docker Hub (after CI/CD push):**
-
-```bash
-docker run -d \
-  -p 8501:8501 \
-  -e GROQ_API_KEY=your_key \
-  -e PLANTID_API_KEY=your_key \
-  -e TAVILY_API_KEY=your_key \
-  yourusername/phytobot:latest
-```
-
-#### Cloud Deployment Options
-
-The Docker image can be deployed to:
-
-- **Render**: Create a new Web Service, connect Docker Hub repository
-- **Railway**: New Project → Deploy from Docker Registry
-- **AWS ECS/Fargate**: Use Docker Hub image
-- **Google Cloud Run**: Deploy container from Docker Hub
-- **Azure Container Instances**: Deploy Docker Hub image
+Docker is not required for the primary Streamlit Community Cloud deployment.
 
 #### Application Startup
 

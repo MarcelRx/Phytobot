@@ -8,6 +8,8 @@ import sys
 
 from dotenv import load_dotenv
 
+# Load .env file if present (for local development)
+# In production (Streamlit Community Cloud), environment variables are provided by the platform
 load_dotenv()
 
 logger = logging.getLogger(__name__)
