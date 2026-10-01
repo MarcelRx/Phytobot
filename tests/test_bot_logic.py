@@ -10,6 +10,7 @@ import pytest
 # Try to import, but skip tests if dependencies are missing
 try:
     from src.bot_logic import get_phytobot_response
+    from src.config import EvidenceState, InputMode
 
     BOT_LOGIC_AVAILABLE = True
 except ImportError:
@@ -265,3 +266,236 @@ class TestPhytobotResponse:
         assert response is not None
         assert isinstance(response, str)
         assert len(docs) == 0
+
+    @patch("src.bot_logic.load_phytobot_resources")
+    def test_text_only_mode_no_plant_id(self, mock_load_resources):
+        """Test that TEXT_ONLY mode does not include plant identification."""
+        mock_llm = MagicMock()
+        mock_response = MagicMock()
+        mock_response.content = "Test response"
+        mock_llm.invoke.return_value = mock_response
+
+        mock_vector_db = MagicMock()
+        mock_retriever = MagicMock()
+        mock_retriever.invoke.return_value = []
+        mock_vector_db.as_retriever.return_value = mock_retriever
+
+        mock_search = MagicMock()
+        mock_search.invoke.return_value = []
+
+        mock_load_resources.return_value = (None, mock_vector_db, mock_llm, mock_search)
+
+        response, docs = get_phytobot_response(
+            "Give me a recipe for sleep tea", input_mode=InputMode.TEXT_ONLY
+        )
+
+        assert response is not None
+        assert isinstance(response, str)
+        # Should indicate no plant identification was performed
+        assert "No plant identification was performed" in response
+
+    @patch("src.bot_logic.load_phytobot_resources")
+    def test_image_only_mode_with_plant(self, mock_load_resources):
+        """Test that IMAGE_ONLY mode includes plant identification when plant is found."""
+        mock_llm = MagicMock()
+        mock_response = MagicMock()
+        mock_response.content = "Test response"
+        mock_llm.invoke.return_value = mock_response
+
+        mock_vector_db = MagicMock()
+        mock_retriever = MagicMock()
+        mock_retriever.invoke.return_value = [MagicMock(page_content="Test doc")]
+        mock_vector_db.as_retriever.return_value = mock_retriever
+
+        mock_search = MagicMock()
+        mock_search.invoke.return_value = []
+
+        mock_load_resources.return_value = (None, mock_vector_db, mock_llm, mock_search)
+
+        response, docs = get_phytobot_response(
+            "Profile of chamomile",
+            plant_name="Chamomile",
+            identification_confidence=0.85,
+            input_mode=InputMode.IMAGE_ONLY,
+        )
+
+        assert response is not None
+        assert isinstance(response, str)
+        # Should include plant identification
+        assert "Identified: Chamomile" in response
+
+    @patch("src.bot_logic.load_phytobot_resources")
+    def test_image_only_mode_no_plant(self, mock_load_resources):
+        """Test that IMAGE_ONLY mode reports when no plant is identified."""
+        mock_llm = MagicMock()
+        mock_response = MagicMock()
+        mock_response.content = "Test response"
+        mock_llm.invoke.return_value = mock_response
+
+        mock_vector_db = MagicMock()
+        mock_retriever = MagicMock()
+        mock_retriever.invoke.return_value = []
+        mock_vector_db.as_retriever.return_value = mock_retriever
+
+        mock_search = MagicMock()
+        mock_search.invoke.return_value = []
+
+        mock_load_resources.return_value = (None, mock_vector_db, mock_llm, mock_search)
+
+        response, docs = get_phytobot_response(
+            "Profile of unknown plant",
+            plant_name=None,
+            input_mode=InputMode.IMAGE_ONLY,
+        )
+
+        assert response is not None
+        assert isinstance(response, str)
+        # Should indicate no plant was identified
+        assert "No specific plant was identified" in response
+
+    @patch("src.bot_logic.load_phytobot_resources")
+    def test_named_plant_in_text_no_plant_id_call(self, mock_load_resources):
+        """Test that naming a plant in text does not trigger plant identification."""
+        mock_llm = MagicMock()
+        mock_response = MagicMock()
+        mock_response.content = "Test response"
+        mock_llm.invoke.return_value = mock_response
+
+        mock_vector_db = MagicMock()
+        mock_retriever = MagicMock()
+        mock_retriever.invoke.return_value = [MagicMock(page_content="Chamomile doc")]
+        mock_vector_db.as_retriever.return_value = mock_retriever
+
+        mock_search = MagicMock()
+        mock_search.invoke.return_value = []
+
+        mock_load_resources.return_value = (None, mock_vector_db, mock_llm, mock_search)
+
+        response, docs = get_phytobot_response(
+            "Give me a recipe using chamomile",
+            plant_name="Chamomile",  # Plant name from user text, not from identification
+            input_mode=InputMode.TEXT_ONLY,
+        )
+
+        assert response is not None
+        assert isinstance(response, str)
+        # Should be TEXT_ONLY mode, no identification performed
+        assert "No plant identification was performed" in response
+
+    @patch("src.bot_logic.load_phytobot_resources")
+    def test_evidence_state_specific_internal(self, mock_load_resources):
+        """Test SPECIFIC_INTERNAL_EVIDENCE state when both medicinal and safety docs exist."""
+        mock_llm = MagicMock()
+        mock_response = MagicMock()
+        mock_response.content = "Test response"
+        mock_llm.invoke.return_value = mock_response
+
+        mock_vector_db = MagicMock()
+        mock_retriever = MagicMock()
+        # Return both medicinal and safety docs
+        mock_retriever.invoke.return_value = [
+            MagicMock(page_content="Medicinal doc"),
+            MagicMock(page_content="Safety doc"),
+        ]
+        mock_vector_db.as_retriever.return_value = mock_retriever
+
+        mock_search = MagicMock()
+        mock_search.invoke.return_value = []
+
+        mock_load_resources.return_value = (None, mock_vector_db, mock_llm, mock_search)
+
+        response, docs = get_phytobot_response(
+            "Query with evidence", input_mode=InputMode.TEXT_ONLY
+        )
+
+        assert response is not None
+        # Should show high confidence trust label
+        assert "Verified internal evidence" in response or "High confidence" in response
+
+    @patch("src.bot_logic.load_phytobot_resources")
+    def test_evidence_state_no_internal_evidence(self, mock_load_resources):
+        """Test NO_RELEVANT_EVIDENCE state when no internal docs exist."""
+        mock_llm = MagicMock()
+        mock_response = MagicMock()
+        mock_response.content = "Test response"
+        mock_llm.invoke.return_value = mock_response
+
+        mock_vector_db = MagicMock()
+        mock_retriever = MagicMock()
+        mock_retriever.invoke.return_value = []
+        mock_vector_db.as_retriever.return_value = mock_retriever
+
+        mock_search = MagicMock()
+        mock_search.invoke.return_value = ["Web result"]
+
+        mock_load_resources.return_value = (None, mock_vector_db, mock_llm, mock_search)
+
+        response, docs = get_phytobot_response(
+            "Query with no internal evidence", input_mode=InputMode.TEXT_ONLY
+        )
+
+        assert response is not None
+        # Should NOT show Trust: 100%
+        assert "Trust: 100%" not in response
+        # Should indicate no verified internal evidence
+        assert (
+            "No verified internal evidence" in response
+            or "Web research only" in response
+        )
+
+    @patch("src.bot_logic.load_phytobot_resources")
+    def test_evidence_state_unknown_plant(self, mock_load_resources):
+        """Test UNKNOWN_PLANT state for image mode with no plant identified."""
+        mock_llm = MagicMock()
+        mock_response = MagicMock()
+        mock_response.content = "Test response"
+        mock_llm.invoke.return_value = mock_response
+
+        mock_vector_db = MagicMock()
+        mock_retriever = MagicMock()
+        mock_retriever.invoke.return_value = []
+        mock_vector_db.as_retriever.return_value = mock_retriever
+
+        mock_search = MagicMock()
+        mock_search.invoke.return_value = []
+
+        mock_load_resources.return_value = (None, mock_vector_db, mock_llm, mock_search)
+
+        response, docs = get_phytobot_response(
+            "Query with unknown plant",
+            plant_name=None,
+            input_mode=InputMode.IMAGE_ONLY,
+        )
+
+        assert response is not None
+        # Should indicate plant identity not established
+        assert (
+            "Plant identity not established" in response
+            or "No specific plant was identified" in response
+        )
+
+    @patch("src.bot_logic.load_phytobot_resources")
+    def test_trust_label_not_hardcoded(self, mock_load_resources):
+        """Test that trust label is dynamically calculated, not hardcoded to 100%."""
+        mock_llm = MagicMock()
+        mock_response = MagicMock()
+        mock_response.content = "Test response"
+        mock_llm.invoke.return_value = mock_response
+
+        mock_vector_db = MagicMock()
+        mock_retriever = MagicMock()
+        mock_retriever.invoke.return_value = []
+        mock_vector_db.as_retriever.return_value = mock_retriever
+
+        mock_search = MagicMock()
+        mock_search.invoke.return_value = []
+
+        mock_load_resources.return_value = (None, mock_vector_db, mock_llm, mock_search)
+
+        response, docs = get_phytobot_response(
+            "Query with no evidence", input_mode=InputMode.TEXT_ONLY
+        )
+
+        assert response is not None
+        # Should NOT show hardcoded Trust: 100%
+        assert "Trust: 100%" not in response

@@ -33,12 +33,28 @@ st.title("Phytobot: Your AI Herbalist 🌿")
 if "query_value" not in st.session_state:
     st.session_state.query_value = ""
 
+# Initialize session state for tracking uploaded file changes
+if "current_uploaded_file" not in st.session_state:
+    st.session_state.current_uploaded_file = None
+
 tab1, tab2 = st.tabs(["Identify Plant", "Symptom & Recipe Expert"])
 
 with tab1:
     uploaded_file = st.file_uploader(
         "Upload a plant photo", type=["jpg", "png", "jpeg"]
     )
+
+    # Clear cached identification if file changed
+    if uploaded_file != st.session_state.current_uploaded_file:
+        # Clear all cached identification results
+        keys_to_remove = [
+            k for k in st.session_state.keys() if k.startswith("identified_")
+        ]
+        for key in keys_to_remove:
+            del st.session_state[key]
+        st.session_state.current_uploaded_file = uploaded_file
+        logger.info("Cleared cached identification due to file change")
+
     if uploaded_file:
         st.image(uploaded_file, width=300)
         if st.button("Identify & Analyze"):
@@ -75,6 +91,7 @@ with tab1:
                             f"Scientific profile and safety of {name}",
                             plant_name=name,
                             identification_confidence=score,
+                            input_mode=InputMode.IMAGE_ONLY,
                         )
                         st.markdown(ans)
                         logger.info(f"Successfully retrieved profile for {name}")
@@ -133,7 +150,9 @@ with tab2:
             logger.warning(f"Text validation failed: {error_msg}")
         else:
             with st.spinner("Consulting WHO Database & Internet..."):
-                ans, docs = get_phytobot_response(user_msg)
+                ans, docs = get_phytobot_response(
+                    user_msg, input_mode=InputMode.TEXT_ONLY
+                )
                 st.markdown(ans)
                 with st.expander("View PDF Sources"):
                     for d in docs:

@@ -5,6 +5,7 @@ Centralized configuration for Phytobot.
 import logging
 import os
 import sys
+from enum import Enum
 
 from dotenv import load_dotenv
 
@@ -142,3 +143,23 @@ class NegativeKnowledgeConfig:
         "safety_negative",
     ]  # Types of knowledge in vector DB
     SAFETY_RETRIEVAL_K = 3  # Number of safety documents to retrieve
+
+
+# Input Mode Configuration
+class InputMode(Enum):
+    """Enumeration of input request types."""
+
+    TEXT_ONLY = "text_only"
+    IMAGE_ONLY = "image_only"
+    IMAGE_AND_TEXT = "image_and_text"
+
+
+# Evidence State Configuration
+class EvidenceState(Enum):
+    """Enumeration of evidence confidence states."""
+
+    SPECIFIC_INTERNAL_EVIDENCE = "specific_internal_evidence"
+    PARTIAL_INTERNAL_EVIDENCE = "partial_internal_evidence"
+    WEB_ONLY_EVIDENCE = "web_only_evidence"
+    NO_RELEVANT_EVIDENCE = "no_relevant_evidence"
+    UNKNOWN_PLANT = "unknown_plant"

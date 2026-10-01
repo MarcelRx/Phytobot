@@ -24,12 +24,15 @@ from langchain_core.prompts import ChatPromptTemplate
 
 from src.config import (
     APIConfig,
+    EvidenceState,
+    InputMode,
     LLMConfig,
     NegativeKnowledgeConfig,
     SafetyConfig,
     SearchConfig,
     VectorDBConfig,
 )
+from src.evidence_logic import determine_evidence_state, get_trust_label
 from src.negative_knowledge import (
     get_medicinal_metadata_filter,
     get_safety_metadata_filter,
@@ -189,7 +192,10 @@ def analyze_safety_risk(safety_docs: List) -> Dict[str, Any]:
 
 
 def get_phytobot_response(
-    user_query: str, plant_name: str = None, identification_confidence: float = None
+    user_query: str,
+    plant_name: str = None,
+    identification_confidence: float = None,
+    input_mode: InputMode = InputMode.TEXT_ONLY,
 ) -> Tuple[str, List]:
     """
     Generate a response to the user's query using RAG and web search.
@@ -197,8 +203,9 @@ def get_phytobot_response(
 
     Args:
         user_query: The user's question or request
-        plant_name: Optional plant name from vision module
+        plant_name: Optional plant name from vision module or user text
         identification_confidence: Optional confidence score from vision module
+        input_mode: The input mode (TEXT_ONLY, IMAGE_ONLY, IMAGE_AND_TEXT)
 
     Returns:
         Tuple of (response_text, internal_documents)
@@ -216,19 +223,38 @@ def get_phytobot_response(
         # Analyze safety risk
         safety_analysis = analyze_safety_risk(safety_docs)
 
+        # Determine evidence state
+        evidence_state = determine_evidence_state(
+            medicinal_docs, safety_docs, input_mode, plant_name
+        )
+        trust_label = get_trust_label(evidence_state)
+
         # Combine all internal documents
         internal_docs = medicinal_docs + safety_docs
         logger.info(f"Total internal documents retrieved: {len(internal_docs)}")
+        logger.info(
+            f"Evidence state: {evidence_state.value}, Trust label: {trust_label}"
+        )
 
         # Web search
         web_context = ""
+        web_search_performed = False
         try:
             web_results = search.invoke(user_query)
             web_context = str(web_results)
+            web_search_performed = True
             logger.info("Web search completed successfully")
         except Exception as e:
             logger.warning(f"Web search failed: {e}")
             web_context = "Web search currently unavailable."
+
+        # Update evidence state if only web evidence is available
+        if (
+            evidence_state == EvidenceState.NO_RELEVANT_EVIDENCE
+            and web_search_performed
+        ):
+            evidence_state = EvidenceState.WEB_ONLY_EVIDENCE
+            trust_label = get_trust_label(evidence_state)
 
         # Build safety warning based on analysis
         safety_warning = ""
@@ -248,6 +274,22 @@ def get_phytobot_response(
             < SafetyConfig.IDENTIFICATION_CONFIDENCE_THRESHOLD
         ):
             identification_warning = f"⚠️ IDENTIFICATION WARNING: Plant identification confidence is low ({identification_confidence:.1%}). Do not rely on this identification for medicinal use."
+
+        # Build plant identification section based on input mode
+        plant_identification_section = ""
+        if input_mode == InputMode.TEXT_ONLY:
+            plant_identification_section = "### Plant Identification\nNo plant identification was performed (text-only query)."
+        elif input_mode in (InputMode.IMAGE_ONLY, InputMode.IMAGE_AND_TEXT):
+            if plant_name:
+                plant_identification_section = (
+                    f"### Plant Identification\nIdentified: {plant_name}"
+                )
+                if identification_confidence is not None:
+                    plant_identification_section += (
+                        f" (confidence: {identification_confidence:.1%})"
+                    )
+            else:
+                plant_identification_section = "### Plant Identification\nNo specific plant was identified from the image."
 
         # Enhanced prompt with safety prioritization
         prompt = ChatPromptTemplate.from_template("""
@@ -269,19 +311,18 @@ def get_phytobot_response(
 
     Structure your answer in these EXACT blocks:
 
-    ### Plant Identification
-    (What plant was identified and with what confidence. If identification is uncertain, state this clearly.)
+    {plant_identification_section}
 
     ### Safety Status
     (Based on retrieved safety evidence, indicate: documented safe/medicinal use, toxicity concern, dangerous plant parts, insufficient evidence, or identification uncertainty.)
 
-    ### Verified WHO/Encyclopedia Data (Trust: 100%)
-    (Use INTERNAL MEDICINAL DATA. If not found, say 'No specific match in our medical library.')
+    ### Verified WHO/Encyclopedia Data ({trust_label})
+    (Use INTERNAL MEDICINAL DATA. If not found, say 'No specific match in our medical library for this query.')
 
-    ### Safety Evidence (Trust: 100%)
+    ### Safety Evidence ({trust_label})
     (Use INTERNAL SAFETY DATA. Report any toxicity, dangerous parts, contraindications, or warnings found. If no safety evidence found, state this explicitly.)
 
-    ### Internet Research & Traditional Use (Trust: 50%)
+    ### Internet Research & Traditional Use (Web research only - verify with medical sources)
     (Summarize INTERNET DATA. Clearly distinguish traditional use from authoritative evidence. Provide recipe steps or traditional uses found online only if safety evidence permits.)
 
     ### Safety & Disclaimer
@@ -301,6 +342,8 @@ def get_phytobot_response(
                 "plant_info": f"Plant Name: {plant_name}"
                 if plant_name
                 else "Plant Name: Not provided",
+                "plant_identification_section": plant_identification_section,
+                "trust_label": trust_label,
                 "medicinal_context": medicinal_context,
                 "safety_context": safety_context,
                 "web_context": web_context,
