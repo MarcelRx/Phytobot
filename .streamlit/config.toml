@@ -1,0 +1,4 @@
+[general]
+# This app requires Python 3.12 for compatibility with torch==2.2.2 and numpy==1.26.4
+# Note: Python version on Streamlit Community Cloud must be set in the UI (Advanced settings)
+# as config.toml cannot control the runtime Python version.
