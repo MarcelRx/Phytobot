@@ -5,7 +5,7 @@ import sys
 import streamlit as st
 
 from src.bot_logic import get_phytobot_response
-from src.config import VectorDBConfig
+from src.config import InputMode, VectorDBConfig
 from src.validation import validate_image_file, validate_text_input
 from src.vision_module import identify_plant
 
