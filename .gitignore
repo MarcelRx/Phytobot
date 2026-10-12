@@ -1,0 +1,26 @@
+# Secrets and environment variables
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+
+# Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Local logs and temporary files
+chat_logs.txt
+temp.jpg
+
+# Test and coverage artifacts
+.coverage
+htmlcov/
+
+# OS files
+.DS_Store

@@ -1,0 +1,171 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "last_updated": "2026-09-30",
+    "source_type": "authoritative_compilation",
+    "description": "Plants with dangerous look-alikes that can be confused with medicinal plants"
+  },
+  "entries": [
+    {
+      "id": "wild_carrot_vs_poison_hemlock",
+      "category": "dangerous_look_alike",
+      "safety_status": "high_risk_confusion",
+      "risk_level": "critical",
+      "safe_plant": {
+        "name": "Wild Carrot",
+        "scientific_name": "Daucus carota",
+        "common_names": ["Queen Anne's Lace", "Wild Carrot"],
+        "identification_features": ["hairy stem", "purple flower center", "carrot-like smell when crushed", "biennial"]
+      },
+      "dangerous_plant": {
+        "name": "Poison Hemlock",
+        "scientific_name": "Conium maculatum",
+        "common_names": ["Poison Hemlock", "Deadly Hemlock"],
+        "identification_features": ["smooth stem with purple spots", "no purple flower center", "unpleasant musty smell", "hollow stem"],
+        "toxicity": "fatal - respiratory paralysis"
+      },
+      "confusion_risk": "high",
+      "confusion_context": ["wild foraging", "beginner herbalists", "similar umbel flower structure"],
+      "traditional_use_warning": "Wild carrot has some traditional uses but identification errors are common and fatal. Extreme caution required.",
+      "source": "United States Department of Agriculture (USDA) - Plant Guide",
+      "source_type": "authoritative",
+      "evidence_quality": "high",
+      "notes": "This is one of the most dangerous plant confusions. Poison hemlock is frequently mistaken for wild carrot."
+    },
+    {
+      "id": "comfrey_vs_foxglove",
+      "category": "dangerous_look_alike",
+      "safety_status": "high_risk_confusion",
+      "risk_level": "high",
+      "safe_plant": {
+        "name": "Comfrey",
+        "scientific_name": "Symphytum officinale",
+        "common_names": ["Comfrey", "Knitbone"],
+        "identification_features": ["hairy leaves", "bell-shaped flowers", "purple, blue, or white flowers", "rhizomatous root"],
+        "safety_note": "External use generally considered safe, internal use controversial due to pyrrolizidine alkaloids"
+      },
+      "dangerous_plant": {
+        "name": "Foxglove",
+        "scientific_name": "Digitalis purpurea",
+        "common_names": ["Foxglove", "Common Foxglove"],
+        "identification_features": ["tall flower spikes", "tubular bell-shaped flowers", "purple, pink, or white flowers", "hairy but different texture"],
+        "toxicity": "fatal - cardiac glycosides"
+      },
+      "confusion_risk": "moderate",
+      "confusion_context": ["garden plants", "medicinal herb gardeners", "similar flower shapes"],
+      "traditional_use_warning": "Both plants have historical medicinal uses but foxglove is lethal. Accidental confusion can be fatal.",
+      "source": "Royal Horticultural Society (RHS) - Plant Identification Guide",
+      "source_type": "authoritative",
+      "evidence_quality": "high",
+      "notes": "Distinct when flowering but vegetative identification can be challenging for non-experts."
+    },
+    {
+      "id": "elderberry_vs_water_hemlock",
+      "category": "dangerous_look_alike",
+      "safety_status": "high_risk_confusion",
+      "risk_level": "critical",
+      "safe_plant": {
+        "name": "Elderberry",
+        "scientific_name": "Sambucus nigra",
+        "common_names": ["Elderberry", "Black Elder"],
+        "identification_features": ["compound leaves with 5-7 leaflets", "clusters of small white flowers", "dark purple berries", "woody stems with pith"],
+        "safety_note": "Berries and flowers are edible when cooked. Raw berries and leaves contain cyanogenic glycosides."
+      },
+      "dangerous_plant": {
+        "name": "Water Hemlock",
+        "scientific_name": "Cicuta virosa",
+        "common_names": ["Water Hemlock", "Cowbane"],
+        "identification_features": ["compound leaves", "white umbel flowers", "grows in wet areas", "purple-spotted or mottled stem"],
+        "toxicity": "fatal - seizures and respiratory failure"
+      },
+      "confusion_risk": "moderate",
+      "confusion_context": ["wetland areas", "similar leaf structure", "both have white flowers"],
+      "traditional_use_warning": "Elderberry has documented safe uses when properly prepared. Water hemlock is one of the most toxic plants. Do not forage without expert identification.",
+      "source": "North American Native Plant Society",
+      "source_type": "authoritative",
+      "evidence_quality": "high",
+      "notes": "Different habitat preferences (elderberry likes disturbed areas, water hemlock likes wetlands) but confusion is possible."
+    },
+    {
+      "id": "wild_garlic_vs_lily_of_the_valley",
+      "category": "dangerous_look_alike",
+      "safety_status": "high_risk_confusion",
+      "risk_level": "high",
+      "safe_plant": {
+        "name": "Wild Garlic",
+        "scientific_name": "Allium ursinum",
+        "common_names": ["Wild Garlic", "Ramsons", "Bear's Garlic"],
+        "identification_features": ["garlic smell when crushed", "star-shaped white flowers", "broad leaves", "grows in woodland"],
+        "safety_note": "Edible and medicinal when correctly identified"
+      },
+      "dangerous_plant": {
+        "name": "Lily of the Valley",
+        "scientific_name": "Convallaria majalis",
+        "common_names": ["Lily of the Valley", "May Lily"],
+        "identification_features": ["bell-shaped white flowers", "broad leaves", "grows in woodland", "no garlic smell"],
+        "toxicity": "fatal - cardiac glycosides"
+      },
+      "confusion_risk": "high",
+      "confusion_context": ["spring foraging", "woodland settings", "similar leaf shape"],
+      "traditional_use_warning": "Wild garlic is edible and medicinal. Lily of the valley is toxic. Smell test is critical for identification.",
+      "source": "Botanical Society of Britain and Ireland (BSBI)",
+      "source_type": "authoritative",
+      "evidence_quality": "high",
+      "notes": "The smell test (crushing leaves) is the most reliable way to distinguish these plants."
+    },
+    {
+      "id": "wild_asparagus_vs_toxic_solanaceae",
+      "category": "dangerous_look_alike",
+      "safety_status": "high_risk_confusion",
+      "risk_level": "moderate",
+      "safe_plant": {
+        "name": "Wild Asparagus",
+        "scientific_name": "Asparagus officinalis",
+        "common_names": ["Wild Asparagus", "Garden Asparagus"],
+        "identification_features": ["feathery foliage", "green to purple stems", "small red berries on female plants", "fern-like appearance"],
+        "safety_note": "Edible and medicinal young shoots"
+      },
+      "dangerous_plant": {
+        "name": "Deadly Nightshade",
+        "scientific_name": "Atropa belladonna",
+        "common_names": ["Deadly Nightshade", "Belladonna"],
+        "identification_features": ["purple bell-shaped flowers", "glossy black berries", "oval leaves", "solanaceous growth pattern"],
+        "toxicity": "fatal - atropine poisoning"
+      },
+      "confusion_risk": "low",
+      "confusion_context": ["garden escapees", "similar foliage at certain growth stages"],
+      "traditional_use_warning": "Wild asparagus is edible. Deadly nightshade is toxic. Confusion is less likely but possible for beginners.",
+      "source": "Royal Botanic Gardens, Kew",
+      "source_type": "authoritative",
+      "evidence_quality": "moderate",
+      "notes": "Distinct when flowering but vegetative stages can appear similar to inexperienced foragers."
+    },
+    {
+      "id": "yarrow_vs_poison_hemlock",
+      "category": "dangerous_look_alike",
+      "safety_status": "high_risk_confusion",
+      "risk_level": "high",
+      "safe_plant": {
+        "name": "Yarrow",
+        "scientific_name": "Achillea millefolium",
+        "common_names": ["Yarrow", "Milfoil"],
+        "identification_features": ["feathery divided leaves", "flat-topped flower clusters", "white to pink flowers", "aromatic when crushed"],
+        "safety_note": "Generally safe medicinal herb with documented uses"
+      },
+      "dangerous_plant": {
+        "name": "Poison Hemlock",
+        "scientific_name": "Conium maculatum",
+        "common_names": ["Poison Hemlock", "Deadly Hemlock"],
+        "identification_features": ["smooth stems with purple spots", "umbel flower clusters", "white flowers", "musty smell"],
+        "toxicity": "fatal - respiratory paralysis"
+      },
+      "confusion_risk": "moderate",
+      "confusion_context": ["roadside plants", "white flower clusters", "similar height"],
+      "traditional_use_warning": "Yarrow is a common medicinal herb. Poison hemlock is lethal. Careful stem examination is essential.",
+      "source": "Medicinal Plant Conservation Programme",
+      "source_type": "authoritative",
+      "evidence_quality": "high",
+      "notes": "Stem characteristics (smooth vs hairy, purple spots) are key distinguishing features."
+    }
+  ]
+}

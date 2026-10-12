@@ -1,0 +1,28 @@
+# Core Environment Fixes
+numpy==1.26.4
+opencv-python-headless==4.11.0.86
+
+# Streamlit & UI
+streamlit
+python-dotenv
+pillow
+watchdog
+
+# AI & RAG
+langchain
+langchain-community
+langchain-groq
+langchain-chroma
+langchain-text-splitters
+sentence-transformers==2.7.0
+transformers==4.40.0
+accelerate==0.30.0
+torch==2.2.2
+pypdf
+
+# Search & Tools
+langchain-tavily
+requests
+
+# Testing
+pytest
