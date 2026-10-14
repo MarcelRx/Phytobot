@@ -28,6 +28,9 @@ updates:
       # Ignore numpy major updates to maintain compatibility
       - dependency-name: "numpy*"
         update-types: ["version-update:semver-major"]
+      # Ignore opencv-python-headless major updates to maintain NumPy 1.x compatibility
+      - dependency-name: "opencv-python-headless*"
+        update-types: ["version-update:semver-major"]
     commit-message:
       prefix: "deps"
       prefix-development: "chore"
