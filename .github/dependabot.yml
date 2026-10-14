@@ -1,0 +1,61 @@
+version: 2
+updates:
+  # Python dependencies
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 10
+    pull-request-branch-name:
+      separator: "-"
+    target-branch: "main"
+    labels:
+      - "dependencies"
+      - "python"
+    ignore:
+      # Defer major updates for ML dependencies until compatibility is verified
+      - dependency-name: "torch*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "transformers*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "sentence-transformers*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "accelerate*"
+        update-types: ["version-update:semver-major"]
+
+      # Keep NumPy 1.x until compatibility with NumPy 2.x is verified
+      - dependency-name: "numpy*"
+        update-types: ["version-update:semver-major"]
+
+      # Defer OpenCV minor and major updates because newer releases may require NumPy 2.x
+      - dependency-name: "opencv-python-headless"
+        update-types:
+          - "version-update:semver-minor"
+          - "version-update:semver-major"
+    commit-message:
+      prefix: "deps"
+      prefix-development: "chore"
+      include: "scope"
+
+  # GitHub Actions dependencies
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    pull-request-branch-name:
+      separator: "-"
+    target-branch: "main"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "ci"
+      prefix-development: "chore"
+      include: "scope"
