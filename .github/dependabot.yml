@@ -1,6 +1,6 @@
 version: 2
 updates:
-  # Enable version updates for Python dependencies
+  # Python dependencies
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
@@ -16,7 +16,7 @@ updates:
       - "dependencies"
       - "python"
     ignore:
-      # Ignore updates for torch and related ML libraries to avoid breaking changes
+      # Defer major updates for ML dependencies until compatibility is verified
       - dependency-name: "torch*"
         update-types: ["version-update:semver-major"]
       - dependency-name: "transformers*"
@@ -25,18 +25,22 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "accelerate*"
         update-types: ["version-update:semver-major"]
-      # Ignore numpy major updates to maintain compatibility
+
+      # Keep NumPy 1.x until compatibility with NumPy 2.x is verified
       - dependency-name: "numpy*"
         update-types: ["version-update:semver-major"]
-      # Ignore opencv-python-headless major updates to maintain NumPy 1.x compatibility
-      - dependency-name: "opencv-python-headless*"
-        update-types: ["version-update:semver-major"]
+
+      # Defer OpenCV minor and major updates because newer releases may require NumPy 2.x
+      - dependency-name: "opencv-python-headless"
+        update-types:
+          - "version-update:semver-minor"
+          - "version-update:semver-major"
     commit-message:
       prefix: "deps"
       prefix-development: "chore"
       include: "scope"
 
-  # Enable version updates for GitHub Actions
+  # GitHub Actions dependencies
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
