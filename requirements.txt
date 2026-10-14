@@ -17,7 +17,7 @@ langchain-text-splitters
 sentence-transformers==2.7.0
 transformers==4.40.0
 accelerate==0.30.0
-torch==2.2.2
+torch==2.14.1
 pypdf
 
 # Search & Tools
