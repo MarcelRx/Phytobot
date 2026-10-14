@@ -1,10 +1,8 @@
 # Phytobot
 
-AI-powered botanical assistant for plant identification, evidence-based herbal information, and safety-aware retrieval.
-
 ## Overview
 
-Phytobot is an AI-powered botanical assistant that combines computer vision, retrieval-augmented generation (RAG), and a safety-aware knowledge architecture to help users identify plants and access medicinal information from authoritative sources. The system integrates plant identification with evidence-based herbal knowledge retrieval while explicitly separating botanical identification from medicinal safety assessment.
+Phytobot is an AI-powered botanical assistant that combines computer vision, retrieval-augmented generation (RAG), and safety-aware knowledge retrieval to help users identify plants and access medicinal information from authoritative sources. The system integrates plant identification with evidence-based herbal knowledge retrieval while explicitly separating botanical identification from medicinal safety assessment.
 
 Users can upload plant images for identification or ask questions about medicinal herbs, symptoms, and traditional remedies. Phytobot retrieves information from WHO monographs, botanical encyclopedias, and curated safety databases, then uses an LLM to generate structured responses that clearly distinguish between authoritative evidence and traditional use. The system is designed for educational purposes and includes multiple safety layers to highlight potential toxicity, dangerous look-alikes, and contraindications.
 
@@ -35,6 +33,20 @@ Phytobot addresses these challenges through a multi-layered architecture:
 The safety architecture explicitly separates plant identification from medicinal safety assessment—identification confidence is not used as a safety score. The negative knowledge base contains curated toxicity information, but it is not exhaustive.
 
 ## Architecture
+
+Phytobot is a monolithic Streamlit application with the following components:
+
+- **Application Layer**: Streamlit UI (`app.py`) with two-tab interface for plant identification and text queries
+- **Vision Module**: Plant identification via Plant.id API with blur detection (`src/vision_module.py`)
+- **Knowledge Retrieval**: Separate retrieval channels for medicinal and safety evidence from ChromaDB (`src/bot_logic.py`)
+- **Safety Layer**: Deterministic safety decision logic before LLM generation (`src/safety_decision.py`)
+- **Knowledge Ingestion**: PDF and JSON processing with chunking and embedding generation (`src/processor.py`)
+- **Configuration**: Centralized configuration with environment variable validation (`src/config.py`)
+- **Validation**: Input validation for text and images (`src/validation.py`)
+
+The system uses ChromaDB for vector storage, all-MiniLM-L6-v2 for embeddings, and Groq for LLM inference. The vector database is pre-built and committed to Git to avoid build-time resource constraints on Streamlit Community Cloud.
+
+For detailed architecture documentation, see [docs/architecture.md](docs/architecture.md).
 
 ```mermaid
 graph TD
@@ -67,20 +79,27 @@ graph TD
 
 ## Tech Stack
 
-| Category         | Technology           | Purpose                     |
-| ---------------- | -------------------- | --------------------------- |
-| Language         | Python               | Application logic           |
-| UI               | Streamlit            | Web interface               |
-| Vision           | Plant.id API         | Plant identification        |
-| Image Processing | OpenCV               | Blur detection              |
-| LLM              | Llama 3.1-8b-instant | Response generation         |
-| LLM Provider     | Groq                 | LLM inference               |
-| RAG Framework    | LangChain            | Retrieval and orchestration |
-| Embeddings       | all-MiniLM-L6-v2     | Semantic embeddings         |
-| Vector Database  | ChromaDB             | Knowledge retrieval         |
-| Web Search       | Tavily               | External search             |
-| PDF Processing   | PyPDF/LangChain      | Knowledge ingestion         |
-| Testing          | pytest               | Automated testing           |
+| Category         | Technology                          | Purpose                     |
+| ---------------- | ----------------------------------- | --------------------------- |
+| Language         | Python 3.12                         | Application logic           |
+| UI               | Streamlit                           | Web interface               |
+| Vision           | Plant.id API v3                     | Plant identification        |
+| Image Processing | OpenCV (opencv-python-headless)     | Blur detection              |
+| LLM              | Llama 3.1-8b-instant (configurable) | Response generation         |
+| LLM Provider     | Groq                                | LLM inference               |
+| RAG Framework    | LangChain                           | Retrieval and orchestration |
+| Embeddings       | all-MiniLM-L6-v2                    | Semantic embeddings         |
+| Vector Database  | ChromaDB                            | Knowledge retrieval         |
+| Web Search       | Tavily                              | External search             |
+| PDF Processing   | PyPDFLoader (LangChain)             | Knowledge ingestion         |
+| Testing          | pytest                              | Automated testing           |
+
+**Core Dependencies**:
+
+- `numpy==1.26.4`, `opencv-python-headless==4.11.0.86` (environment fixes)
+- `torch==2.2.2`, `transformers==4.40.0`, `sentence-transformers==2.7.0` (AI/ML)
+- `langchain`, `langchain-community`, `langchain-groq`, `langchain-chroma` (RAG)
+- `streamlit`, `python-dotenv`, `pillow` (UI and utilities)
 
 ## Key Features
 
@@ -102,25 +121,40 @@ graph TD
 
 ## AI Architecture
 
-### Vision
+Phytobot uses AI in three distinct areas:
 
-Plant identification uses the Plant.id API v3 endpoint. Images are encoded as Base64 and sent with optional geographic coordinates. The API returns plant classifications with probability scores. Before identification, OpenCV calculates the Laplacian variance to detect blur—images below the threshold (default: 70) are rejected. The system also checks if the image contains a plant via the `is_plant.binary` field.
+**Vision AI**: Plant identification via Plant.id API v3. Images are encoded as Base64 and sent with optional geographic coordinates. The API returns plant classifications with probability scores. Before identification, OpenCV calculates the Laplacian variance to detect blur—images below the threshold (default: 70) are rejected. The system also checks if the image contains a plant via the `is_plant.binary` field.
 
-### Embeddings
+**Embeddings**: The system uses the all-MiniLM-L6-v2 model to generate semantic embeddings. Document chunks from PDFs and negative knowledge entries are converted into 384-dimensional vectors, enabling semantic similarity search in ChromaDB. Embeddings are generated during knowledge ingestion and cached for efficient retrieval.
 
-The system uses the all-MiniLM-L6-v2 model to generate semantic embeddings. Document chunks from PDFs and negative knowledge entries are converted into 384-dimensional vectors, enabling semantic similarity search in ChromaDB. Embeddings are generated during knowledge ingestion and cached for efficient retrieval.
+**RAG**: PDF knowledge ingestion uses PyPDFLoader to extract text from WHO monographs and herbal encyclopedia documents. Text is split into chunks (1000 characters with 200-character overlap) using RecursiveCharacterTextSplitter. Chunks are embedded and stored in ChromaDB with metadata marking them as medicinal knowledge. Negative knowledge from JSON files is similarly processed with structured metadata including risk levels, safety status, and categories (toxic_plant, toxic_parts, dangerous_look_alike). Retrieval uses metadata filters to separate medicinal and safety channels, with top-k retrieval (k=3 for medicinal, k=3 for safety).
 
-### RAG
+**LLM**: Llama 3.1-8b-instant is hosted via Groq with temperature 0.1 for consistent responses. The prompt includes structured safety rules, retrieved medicinal context, safety context, web search results, and system-generated safety warnings. The LLM is instructed to follow critical safety rules: never infer medicinal safety from identification alone, never ignore toxicity information, distinguish traditional use from authoritative evidence, and prioritize safety warnings. The response structure includes plant identification, safety status, verified WHO/encyclopedia data, safety evidence, internet research, and a mandatory disclaimer block.
 
-PDF knowledge ingestion uses PyPDFLoader to extract text from WHO monographs and herbal encyclopedia documents. Text is split into chunks (1000 characters with 200-character overlap) using RecursiveCharacterTextSplitter. Chunks are embedded and stored in ChromaDB with metadata marking them as medicinal knowledge. Negative knowledge from JSON files is similarly processed with structured metadata including risk levels, safety status, and categories (toxic_plant, toxic_parts, dangerous_look_alike). Retrieval uses metadata filters to separate medicinal and safety channels, with top-k retrieval (k=3 for medicinal, k=3 for safety).
+**Safety Decision Layer**: Deterministic application logic in `src/safety_decision.py` evaluates safety evidence before the LLM generates the final response. The logic applies priority-ordered rules: dangerous look-alikes trigger the highest priority warnings, followed by critical/high toxicity, then caution_required status. Identification confidence below 70% triggers mandatory warnings. The system defaults to unsafe when evidence is insufficient. This deterministic layer ensures safety decisions are not delegated to the LLM.
 
-### LLM
+For detailed AI architecture documentation, see [docs/ai-architecture.md](docs/ai-architecture.md).
 
-Llama 3.1-8b-instant is hosted via Groq with temperature 0.1 for consistent responses. The prompt includes structured safety rules, retrieved medicinal context, safety context, web search results, and system-generated safety warnings. The LLM is instructed to follow critical safety rules: never infer medicinal safety from identification alone, never ignore toxicity information, distinguish traditional use from authoritative evidence, and prioritize safety warnings. The response structure includes plant identification, safety status, verified WHO/encyclopedia data, safety evidence, internet research, and a mandatory disclaimer block.
+## RAG Pipeline
 
-### Safety Decision Layer
+Phytobot implements a complete Retrieval-Augmented Generation (RAG) pipeline with the following verified stages:
 
-Deterministic application logic in `safety_decision.py` evaluates safety evidence before the LLM generates the final response. The logic applies priority-ordered rules: dangerous look-alikes trigger the highest priority warnings, followed by critical/high toxicity, then caution_required status. Identification confidence below 70% triggers mandatory warnings. The system defaults to unsafe when evidence is insufficient. This deterministic layer ensures safety decisions are not delegated to the LLM.
+1. **Knowledge Document Acquisition**: PDFs from `data/` (WHO monographs, herbal encyclopedia) and JSON files from `data/negative/` (toxic plants, toxic parts, look-alikes)
+2. **Document Parsing**: PyPDFLoader for PDFs, standard JSON parsing for safety knowledge
+3. **Document Chunking**: RecursiveCharacterTextSplitter with 1000-character chunks and 200-character overlap
+4. **Embedding Generation**: all-MiniLM-L6-v2 model (384-dimensional vectors)
+5. **Embedding Storage**: ChromaDB with metadata (knowledge_type, risk_level, safety_status, etc.)
+6. **User Query Processing**: Input validation (text length, image size/quality)
+7. **Semantic Retrieval**: Separate retrieval channels with metadata filtering (medicinal vs safety)
+8. **Ranking**: Top-k retrieval (k=3 for each channel) based on cosine similarity
+9. **Context Construction**: Concatenation of retrieved documents into context strings
+10. **Context Augmentation**: Injection of medicinal context, safety context, and web context into LLM prompt
+11. **Answer Generation**: LLM generates structured response using augmented prompt
+12. **Source Attribution**: PDF source and page number displayed to users
+
+The system does not implement reranking, hybrid search, or grounding checks. Web search is treated as supplementary low-confidence evidence.
+
+For detailed RAG pipeline documentation, see [docs/rag-pipeline.md](docs/rag-pipeline.md).
 
 ## Data Flow
 
@@ -156,28 +190,54 @@ graph LR
     G --> H[Response]
 ```
 
-### Knowledge Ingestion
+## Knowledge Sources
 
-```mermaid
-graph LR
-    A[PDF / JSON Knowledge] --> B[Loader]
-    B --> C[Chunking]
-    C --> D[Embedding Generation]
-    D --> E[ChromaDB Storage]
-    E --> F[Metadata Attachment]
-```
+**Medicinal Knowledge**:
+
+- WHO monographs on selected medicinal plants (4 volumes) - Authoritative PDF documents
+- The Encyclopedia of Herbal Medicine by Andrew Chevallier - Authoritative PDF document
+- Source type: Authoritative PDF
+- Storage: Local `data/` directory, ingested into ChromaDB
+
+**Safety/Negative Knowledge**:
+
+- Toxic plants database - Structured JSON
+- Toxic parts database - Structured JSON
+- Dangerous look-alikes database - Structured JSON
+- Source type: Authoritative compilation
+- Storage: Local `data/negative/` directory, ingested into ChromaDB
+- Metadata: Includes risk_level, safety_status, category, evidence_quality
+
+**Web Search**:
+
+- Tavily search API - General web search
+- Source type: Unvetted internet content
+- Trust level: Low confidence
+- Used as supplementary information only
+
+**Knowledge Characteristics**:
+
+- Medicinal knowledge: Static, authoritative, curated
+- Safety knowledge: Static, authoritative, curated (but not exhaustive)
+- Web search: Dynamic, unvetted, low confidence
+
+The negative knowledge base is not exhaustive. Users should always err on the side of caution when dealing with plant identification and safety.
 
 ## Testing
 
-The test suite currently includes 79 tests with the following results:
+The test suite includes 118 tests covering configuration, validation, safety logic, vision module, bot logic, and evidence state management.
 
-- **Collected**: 79 tests
-- **Passed**: 79 tests
-- **Skipped**: 1 test
+**Test Framework**: pytest
+
+**Test Execution Results** (2026-10-14):
+
+- **Collected**: 118 tests
+- **Passed**: 118 tests
 - **Failed**: 0 tests
-- **Warnings**: 1 deprecation warning (LangChain pydantic v1 compatibility)
+- **Skipped**: 0 tests
+- **Warnings**: 2 deprecation warnings (LangChain pydantic v1 compatibility, pytest-asyncio configuration)
 
-Test coverage includes:
+**Test Coverage**:
 
 - Configuration validation (API, vector DB, LLM, vision, search, text, safety)
 - Negative knowledge loading and entry conversion
@@ -186,75 +246,98 @@ Test coverage includes:
 - Conflict detection between medicinal and safety evidence
 - Input validation (text length, image size, format verification)
 - Vision module (blur detection, plant identification, API error handling)
-- Failure scenarios (missing API keys, timeouts, malformed responses)
+- Bot logic orchestration (response generation, error handling, evidence states)
+- Session state caching
+- Session-based rate limiting (14 tests)
+- AI safety and prompt injection regression tests (26 tests)
 
-External APIs (Plant.id, Tavily, Groq) are mocked in tests where applicable. Code coverage percentage has not been measured.
+**External APIs**: Plant.id, Tavily, and Groq are mocked in tests. Tests do not require real API keys.
+
+**CI/CD**: GitHub Actions workflow runs pytest on every push and pull request to the main branch.
+
+**Limitations**: No end-to-end tests, no retrieval quality evaluation, no LLM response accuracy evaluation, no code coverage measurement.
+
+For detailed testing documentation, see [docs/testing-and-verification.md](docs/testing-and-verification.md).
 
 ## Security
 
-- **Local Development**: API keys are stored in `.env` file, which is ignored by Git and not tracked in the repository
-- **Production**: Streamlit Community Cloud provides environment variables/secrets management; no `.env` file is used in production
-- **Secrets Management**: API keys are never hardcoded in source code; all keys are loaded via environment variables
-- **Input Validation**: Text input length is limited (1000 characters); image uploads are validated for size (10MB max) and format
-- **Image Validation**: Actual image content is verified using PIL to prevent format mismatches and corrupted files
-- **API Timeout Handling**: All external API calls have configured timeouts (30s for Plant.id, 30s for Groq, 15s for Tavily)
-- **Error Handling**: Comprehensive error handling prevents sensitive information from leaking in error messages
-- **Logging**: No secrets or sensitive data are logged; error messages are descriptive but do not include credentials
+**Secrets Management**:
+
+- Local development: API keys stored in `.env` file (gitignored)
+- Production (Streamlit Community Cloud): Environment variables provided by platform secrets management
+- All API keys loaded via environment variables, never hardcoded
+
+**Input Validation**:
+
+- Text input length limited to 1000 characters
+- Image uploads validated for size (10MB max) and format (jpg, jpeg, png)
+- Actual image content verified using PIL to prevent format mismatches
+
+**API Security**:
+
+- All external API calls have configured timeouts (30s for Plant.id, 30s for Groq, 15s for Tavily)
+- Comprehensive error handling prevents sensitive information leakage
+- No secrets or sensitive data logged
+
+**Safety Controls**:
+
+- Deterministic safety decision layer runs before LLM generation
+- Safety warnings mandatory for critical/high-risk plants
+- Medical disclaimer enforced on all responses
+- Identification confidence not used as safety score
+
+**Limitations**:
+
+- No user authentication or authorization
+- Session-based rate limiting only (no global or IP-based rate limiting)
+- GitHub Dependabot configured but owner must enable alerts
+- Prompt injection tests cover deterministic safety layer, not LLM itself
+- No LLM output validation beyond disclaimers
+- No security headers or CORS configuration (managed by platform)
+
+For detailed security documentation, see [docs/security.md](docs/security.md).
 
 ## Deployment
 
-### Primary Deployment Architecture
+**Primary Deployment**: Streamlit Community Cloud
+
+**Deployment Architecture**:
 
 ```
-GitHub Repository
-        ↓
-Streamlit Community Cloud
-        ↓
-Phytobot Application
+GitHub Repository → Streamlit Community Cloud → Phytobot Application
 ```
 
-### Deployment Steps
+**Deployment Steps**:
 
-1. **GitHub Repository**: Code is pushed to GitHub with:
-   - `app.py` (entrypoint)
-   - `requirements.txt` (dependencies)
-   - `data/` (knowledge base PDFs)
-   - `data/negative/` (safety knowledge JSON files)
-   - `vector_db/` (pre-built vector database)
+1. Code pushed to GitHub with `app.py`, `requirements.txt`, `data/`, `data/negative/`, and pre-built `vector_db/`
+2. Repository connected to Streamlit Community Cloud
+3. Main branch and `app.py` selected
+4. Secrets configured in Streamlit app settings (GROQ_API_KEY, PLANTID_API_KEY, TAVILY_API_KEY)
+5. Python version set to 3.12 in Advanced settings
 
-2. **Streamlit Community Cloud**:
-   - Connect repository to Streamlit Community Cloud
-   - Select `main` branch and `app.py` as main file
-   - Configure secrets in Streamlit app settings:
-     - `GROQ_API_KEY`
-     - `PLANTID_API_KEY`
-     - `TAVILY_API_KEY`
-     - `VECTOR_DB_PATH` (optional, defaults to `./vector_db`)
+**Vector Database Strategy**:
 
-3. **Vector Database Strategy**:
-   - The repository includes a pre-built `vector_db/` directory committed to Git
-   - This includes all embeddings from WHO monographs, herbal encyclopedia, and negative knowledge
-   - No build step is required at deployment time
-   - This ensures fast, reliable startup on Streamlit Community Cloud
+- Pre-built `vector_db/` directory committed to Git
+- Includes all embeddings from WHO monographs, herbal encyclopedia, and negative knowledge
+- No build step required at deployment time
+- Ensures fast, reliable startup on Streamlit Community Cloud
 
-4. **Knowledge Base Rebuild**:
-   - To rebuild the vector database after updating knowledge base:
-   ```bash
-   python src/processor.py
-   git add vector_db/
-   git commit -m "Update vector database"
-   git push
-   ```
+**Knowledge Base Rebuild**:
 
-### GitHub Actions CI
+```bash
+python src/processor.py
+git add vector_db/
+git commit -m "Update vector database"
+git push
+```
 
-The `.github/workflows/deploy.yml` workflow runs pytest on every push and pull request to the main branch. This serves as a quality gate but does not handle deployment—deployment is managed by Streamlit Community Cloud.
+**CI/CD**: GitHub Actions workflow runs pytest on every push and pull request to main branch as a quality gate. Does not handle deployment.
 
-### Optional Docker Deployment
+**Docker**: Dockerfile available for local development or alternative deployment platforms. Builds vector database during image build with `BUILDING_VECTOR_DB=1` to skip startup validation.
 
-Docker is available for local development or alternative deployment platforms but is not required for the primary Streamlit Community Cloud deployment. The Dockerfile builds the vector database during image build using the `BUILDING_VECTOR_DB=1` environment variable to skip startup validation.
+**Live Demo**: Not yet available. Deployment to Streamlit Community Cloud is pending.
 
-**Live demo**: Not yet available. Deployment to Streamlit Community Cloud is pending.
+For detailed deployment documentation, see [docs/deployment.md](docs/deployment.md).
 
 ## Screenshots
 
@@ -263,6 +346,14 @@ Screenshots will be added after the first public deployment.
 ## Live Demo
 
 Live demo: Not yet available. Deployment to Streamlit Community Cloud is pending.
+
+To run locally:
+
+1. Clone the repository
+2. Install dependencies: `pip install -r requirements.txt`
+3. Build vector database: `python src/processor.py`
+4. Configure API keys in `.env` file
+5. Run: `streamlit run app.py`
 
 ## Engineering Challenges
 
@@ -281,7 +372,7 @@ Live demo: Not yet available. Deployment to Streamlit Community Cloud is pending
 
 ## What I Learned
 
-Through building Phytobot, I gained practical experience with:
+Through building Phytobot, practical experience was gained with:
 
 - **RAG Architecture**: Designing and implementing a retrieval-augmented generation pipeline with vector databases, embeddings, and metadata filtering
 - **Vector Databases**: Using ChromaDB for semantic search with batch ingestion, metadata filtering, and persistence strategies
@@ -308,6 +399,10 @@ Through building Phytobot, I gained practical experience with:
 - **Persistent User History**: Implement user sessions and query history for better context and UX
 - **Authentication**: Add user authentication for personalized features and usage tracking
 - **Scalable Vector Storage**: Evaluate cloud vector database options for larger knowledge bases and horizontal scaling
+- **Add Rate Limiting**: Implement per-user or IP-based rate limiting to prevent abuse
+- **Add Dependency Scanning**: Configure Dependabot or Snyk for vulnerability alerts
+- **Add Prompt Injection Testing**: Test the system against prompt injection attacks
+- **Add LLM Output Validation**: Validate that LLM responses adhere to safety rules and are grounded in retrieved context
 
 ## AI-Assisted Development
 
@@ -333,4 +428,4 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

@@ -1,0 +1,54 @@
+version: 2
+updates:
+  # Enable version updates for Python dependencies
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 10
+    pull-request-branch-name:
+      separator: "-"
+    target-branch: "main"
+    labels:
+      - "dependencies"
+      - "python"
+    ignore:
+      # Ignore updates for torch and related ML libraries to avoid breaking changes
+      - dependency-name: "torch*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "transformers*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "sentence-transformers*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "accelerate*"
+        update-types: ["version-update:semver-major"]
+      # Ignore numpy major updates to maintain compatibility
+      - dependency-name: "numpy*"
+        update-types: ["version-update:semver-major"]
+    commit-message:
+      prefix: "deps"
+      prefix-development: "chore"
+      include: "scope"
+
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    pull-request-branch-name:
+      separator: "-"
+    target-branch: "main"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "ci"
+      prefix-development: "chore"
+      include: "scope"

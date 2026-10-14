@@ -6,6 +6,7 @@ import streamlit as st
 
 from src.bot_logic import get_phytobot_response
 from src.config import InputMode, VectorDBConfig
+from src.rate_limiter import RateLimiter
 from src.validation import validate_image_file, validate_text_input
 from src.vision_module import identify_plant
 
@@ -37,6 +38,10 @@ if "query_value" not in st.session_state:
 if "current_uploaded_file" not in st.session_state:
     st.session_state.current_uploaded_file = None
 
+# Initialize rate limiter
+if "rate_limiter" not in st.session_state:
+    st.session_state.rate_limiter = RateLimiter(st.session_state)
+
 tab1, tab2 = st.tabs(["Identify Plant", "Symptom & Recipe Expert"])
 
 with tab1:
@@ -58,9 +63,16 @@ with tab1:
     if uploaded_file:
         st.image(uploaded_file, width=300)
         if st.button("Identify & Analyze"):
-            # Validate image
-            is_valid, error_msg = validate_image_file(uploaded_file)
-            if not is_valid:
+            # Check rate limit for plant identification
+            rate_limiter = st.session_state.rate_limiter
+            is_allowed, rate_error = rate_limiter.check_and_record("plant_identification")
+            if not is_allowed:
+                st.error(rate_error)
+                logger.warning(f"Rate limit check failed for plant identification: {rate_error}")
+            else:
+                # Validate image
+                is_valid, error_msg = validate_image_file(uploaded_file)
+                if not is_valid:
                 st.error(error_msg)
                 logger.warning(f"Image validation failed: {error_msg}")
             else:
@@ -143,25 +155,32 @@ with tab2:
     )
 
     if user_msg:
-        # Validate text input
-        is_valid, error_msg = validate_text_input(user_msg)
-        if not is_valid:
-            st.error(error_msg)
-            logger.warning(f"Text validation failed: {error_msg}")
+        # Check rate limit for text queries
+        rate_limiter = st.session_state.rate_limiter
+        is_allowed, rate_error = rate_limiter.check_and_record("text_query")
+        if not is_allowed:
+            st.error(rate_error)
+            logger.warning(f"Rate limit check failed for text query: {rate_error}")
         else:
-            with st.spinner("Consulting WHO Database & Internet..."):
-                ans, docs = get_phytobot_response(
-                    user_msg, input_mode=InputMode.TEXT_ONLY
-                )
-                st.markdown(ans)
-                with st.expander("View PDF Sources"):
-                    for d in docs:
-                        st.caption(
-                            f"Source: {d.metadata.get('source')} | Page: {d.metadata.get('page', 'N/A')}"
-                        )
-                logger.info(
-                    f"Processed query successfully, retrieved {len(docs)} sources"
-                )
+            # Validate text input
+            is_valid, error_msg = validate_text_input(user_msg)
+            if not is_valid:
+                st.error(error_msg)
+                logger.warning(f"Text validation failed: {error_msg}")
+            else:
+                with st.spinner("Consulting WHO Database & Internet..."):
+                    ans, docs = get_phytobot_response(
+                        user_msg, input_mode=InputMode.TEXT_ONLY
+                    )
+                    st.markdown(ans)
+                    with st.expander("View PDF Sources"):
+                        for d in docs:
+                            st.caption(
+                                f"Source: {d.metadata.get('source')} | Page: {d.metadata.get('page', 'N/A')}"
+                            )
+                    logger.info(
+                        f"Processed query successfully, retrieved {len(docs)} sources"
+                    )
 
 st.sidebar.warning(
     "Disclaimer: This is an educational tool. Herbal remedies can interact with medications. Always consult a doctor."
