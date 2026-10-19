@@ -15,7 +15,7 @@ langchain-groq
 langchain-chroma
 langchain-text-splitters
 sentence-transformers==2.7.0
-transformers==4.40.0
+transformers==4.57.6
 accelerate==0.34.2
 torch==2.2.2
 pypdf
